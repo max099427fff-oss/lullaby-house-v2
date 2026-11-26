@@ -110,7 +110,8 @@
     add(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 8), mChrome, tx1 - 0.15, 0.7, 0.07); var tt = add(new THREE.CylinderGeometry(0.014, 0.014, 0.12, 8), mChrome, tx1 - 0.15, 0.78, 0.12); tt.rotation.x = Math.PI / 2;
     // ---------- Poly Haven CC0 props (glTF 1k), loaded async ----------
     function props() {
-      var L = new THREE.GLTFLoader(); L.setCrossOrigin('anonymous');
+      var mgr = new THREE.LoadingManager(); mgr.setURLModifier(function (u) { return u.replace(/\/gltf\/1k\/([a-z_0-9]+)\/textures\//, '/jpg/1k/$1/'); });
+      var L = new THREE.GLTFLoader(mgr); L.setCrossOrigin('anonymous');
       var B = 'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/';
       function put(id, h, x, y, z, ry, rz) {
         L.load(B + id + '/' + id + '_1k.gltf', function (g) {
