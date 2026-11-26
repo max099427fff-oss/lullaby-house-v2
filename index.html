@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>الحمّام الكبير - معاينة</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:sans-serif;color:#ddd;touch-action:none}
+canvas{display:block}
+#hud{position:fixed;top:8px;left:0;right:0;text-align:center;font-size:13px;opacity:.75;pointer-events:none}
+#prompt{position:fixed;bottom:22%;left:50%;transform:translateX(-50%);background:#000a;border:1px solid #fff4;border-radius:20px;padding:8px 18px;display:none;font-size:15px}
+#joy{position:fixed;left:24px;bottom:24px;width:110px;height:110px;border-radius:55px;border:2px solid #fff3;display:none}
+#knob{position:absolute;left:35px;top:35px;width:40px;height:40px;border-radius:20px;background:#fff4}
+#bf{position:fixed;right:24px;bottom:96px;width:56px;height:56px;border-radius:28px;border:2px solid #fff4;background:#0008;font-size:24px;display:none;text-align:center;line-height:56px}
+#bi{position:fixed;right:24px;bottom:24px;width:56px;height:56px;border-radius:28px;border:2px solid #fff4;background:#0008;font-size:15px;display:none;text-align:center;line-height:56px}
+#load{position:fixed;inset:0;background:#000;display:flex;align-items:center;justify-content:center;font-size:18px;z-index:5}
+</style></head><body>
+<div id="load">جاري تحميل الجودة العالية للتكستشرات...</div>
+<div id="hud"></div><div id="prompt"></div>
+<div id="joy"><div id="knob"></div></div><div id="bf">🔦</div><div id="bi">فتح</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="bathroom/bathroom.js"></script>
+<script>
+var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high';
+var renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, HIGH ? 2 : 1.5)); renderer.setSize(innerWidth, innerHeight);
+renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = HIGH ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+document.body.appendChild(renderer.domElement);
+var scene = new THREE.Scene(); scene.background = new THREE.Color(0x030405); scene.fog = new THREE.FogExp2(0x040506, HIGH ? 0.026 : 0.032);
+var camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 80); camera.rotation.order = 'YXZ'; scene.add(camera);
+var bath = BathroomModule.build(THREE, { quality: HIGH ? 'high' : 'normal', renderer: renderer });
+scene.add(bath.group);
+scene.add(new THREE.AmbientLight(0x1a1e26, 0.5));
+var flash = new THREE.SpotLight(0xfff0d6, 4.2, 30, 0.5, 0.55, 1.5); flash.castShadow = true; flash.shadow.mapSize.set(HIGH ? 1024 : 512, HIGH ? 1024 : 512); flash.shadow.bias = -0.0004;
+camera.add(flash); flash.position.set(0.15, -0.1, 0); camera.add(flash.target); flash.target.position.set(0, 0, -6);
+var P = { x: bath.spawn.x, z: bath.spawn.z, yaw: bath.spawn.yaw, pitch: 0, eye: 1.6 };
+if (Q.get('at')) { var a = Q.get('at').split(','); P.x = +a[0]; P.z = +a[1]; if (a[2]) P.eye = +a[2]; }
+if (Q.get('yaw')) P.yaw = +Q.get('yaw'); if (Q.get('pitch')) P.pitch = +Q.get('pitch');
+var keys = {}, joy = { x: 0, y: 0 }, isTouch = 'ontouchstart' in window || Q.get('touch') === '1';
+addEventListener('keydown', function (e) { keys[e.code] = 1; if (e.code === 'KeyF') flash.visible = !flash.visible; if (e.code === 'KeyE') doInteract(); });
+addEventListener('keyup', function (e) { keys[e.code] = 0; });
+var drag = null;
+renderer.domElement.addEventListener('pointerdown', function (e) { if (e.clientX > innerWidth * 0.4 || !isTouch) drag = { x: e.clientX, y: e.clientY, id: e.pointerId }; });
+addEventListener('pointermove', function (e) { if (drag && e.pointerId === drag.id) { P.yaw -= (e.clientX - drag.x) * 0.005; P.pitch = Math.max(-1.3, Math.min(1.3, P.pitch - (e.clientY - drag.y) * 0.005)); drag.x = e.clientX; drag.y = e.clientY; } });
+addEventListener('pointerup', function () { drag = null; });
+if (isTouch) {
+  var jel = document.getElementById('joy'), kn = document.getElementById('knob'); jel.style.display = 'block'; document.getElementById('bf').style.display = 'block'; document.getElementById('bi').style.display = 'block';
+  var jid = null;
+  function jm(e) { var r = jel.getBoundingClientRect(), dx = (e.clientX - r.left - 55) / 55, dy = (e.clientY - r.top - 55) / 55, l = Math.hypot(dx, dy); if (l > 1) { dx /= l; dy /= l; } joy.x = dx; joy.y = dy; kn.style.left = (35 + dx * 35) + 'px'; kn.style.top = (35 + dy * 35) + 'px'; }
+  jel.addEventListener('pointerdown', function (e) { jid = e.pointerId; jel.setPointerCapture(jid); jm(e); });
+  jel.addEventListener('pointermove', function (e) { if (e.pointerId === jid) jm(e); });
+  jel.addEventListener('pointerup', function () { jid = null; joy.x = joy.y = 0; kn.style.left = kn.style.top = '35px'; });
+  document.getElementById('bf').onclick = function () { flash.visible = !flash.visible; };
+  document.getElementById('bi').onclick = doInteract;
+}
+var near = null, prompt = document.getElementById('prompt');
+function doInteract() { if (near) near.activate(); }
+function collide(nx, nz) {
+  var r = 0.32, c = bath.bounds.colliders;
+  for (var i = 0; i < c.length; i++) { var b = c[i]; if (nx > b.x0 - r && nx < b.x1 + r && nz > b.z0 - r && nz < b.z1 + r) return true; }
+  return false;
+}
+var last = performance.now(), frames = 0, tF = 0, fpsEl = document.getElementById('hud');
+function loop(n) {
+  var dt = Math.min(0.05, (n - last) / 1000); last = n;
+  var f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0) - joy.y, s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0) + joy.x, sp = (keys.ShiftLeft ? 4.5 : 2.4) * dt;
+  var dx = (-Math.sin(P.yaw) * f + Math.cos(P.yaw) * s) * sp, dz = (-Math.cos(P.yaw) * f - Math.sin(P.yaw) * s) * sp;
+  if (!collide(P.x + dx, P.z)) P.x += dx; if (!collide(P.x, P.z + dz)) P.z += dz;
+  camera.position.set(P.x, P.eye + Math.sin(n * 0.006) * 0.0 , P.z); camera.rotation.set(P.pitch, P.yaw, 0);
+  bath.update(dt);
+  near = null; var bd = 1e9;
+  for (var i = 0; i < bath.interactables.length; i++) { var it = bath.interactables[i], d = Math.hypot(it.pos.x - P.x, it.pos.z - P.z); if (d < it.radius && d < bd) { bd = d; near = it; } }
+  if (near) { prompt.style.display = 'block'; prompt.textContent = (isTouch ? 'زر «فتح»: ' : 'اضغط E: ') + near.name; } else prompt.style.display = 'none';
+  renderer.render(scene, camera);
+  frames++; tF += dt; if (tF > 1) { window.__fps = frames / tF; frames = 0; tF = 0; }
+  requestAnimationFrame(loop);
+}
+addEventListener('resize', function () { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+window.BATH = bath; window.P = P;
+setTimeout(function () { document.getElementById('load').style.display = 'none'; }, 6000);
+requestAnimationFrame(loop);
+</script></body></html>
