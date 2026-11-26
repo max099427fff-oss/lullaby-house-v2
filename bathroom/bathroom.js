@@ -32,8 +32,6 @@
 
     var mFloor = pbr('brown_floor_tiles', 0xa39d94, 1.1), mTile = pbr("long_white_tiles", 0x8d8b84, 1.0), mPlaster = pbr('damaged_plaster', 0x8a8f8a, 1.3), mCeil = pbr('ceiling_interior', 0x7d7a74, 1.0), mConc = pbr('chipped_concrete', 0x85827c, 1.2);
     mTile.color.setHex(0x1e3d44); mTile.roughness = 0.4; mTile.metalness = 0.05;
-    (function () { var c = document.createElement('canvas'); c.width = c.height = 1024; var g = c.getContext('2d'); g.fillStyle = '#0b0b0c'; g.fillRect(0, 0, 1024, 1024); g.fillStyle = '#b9b8aa'; g.fillRect(0, 0, 512, 512); g.fillRect(512, 512, 512, 512); g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 3; g.strokeRect(0, 0, 512, 512); g.strokeRect(512, 512, 512, 512); g.strokeRect(512, 0, 512, 512); g.strokeRect(0, 512, 512, 512);
-      var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; mFloor = new THREE.MeshStandardMaterial({ map: t, roughness: 0.3, metalness: 0.0 }); })();
     mPlaster = new THREE.MeshStandardMaterial({ color: 0x3c4147, roughness: 0.92, metalness: 0 });
     mCeil = new THREE.MeshStandardMaterial({ color: 0x25272b, roughness: 0.95, metalness: 0 });
     var mPorc = new THREE.MeshStandardMaterial({ color: 0xc4c0b3, roughness: 0.22, metalness: 0.02 });
