@@ -87,21 +87,47 @@
     col(0, sz - 0.34, 0.56, sz + 0.34);
     var mirTex = (function () {
       var c = document.createElement('canvas'); c.width = 256; c.height = 320; var g = c.getContext('2d');
-      var gr = g.createLinearGradient(0, 0, 256, 320); gr.addColorStop(0, '#26363c'); gr.addColorStop(0.5, '#3e555b'); gr.addColorStop(1, '#16232a'); g.fillStyle = gr; g.fillRect(0, 0, 256, 320);
+      var gr = g.createLinearGradient(0, 0, 256, 320); gr.addColorStop(0, '#4a636a'); gr.addColorStop(0.5, '#7b9aa0'); gr.addColorStop(1, '#2c4048'); g.fillStyle = gr; g.fillRect(0, 0, 256, 320);
       g.fillStyle = 'rgba(200,222,228,0.2)'; g.fillRect(50, 0, 14, 320); g.fillRect(160, 0, 30, 320);
       for (var i = 0; i < 220; i++) { g.fillStyle = 'rgba(30,25,18,' + (Math.random() * 0.4) + ')'; g.fillRect(Math.random() * 256, Math.random() * 320, 1 + Math.random() * 14, 1 + Math.random() * 14); }
       g.strokeStyle = 'rgba(225,238,240,0.6)'; g.lineWidth = 1.3;
       for (var k = 0; k < 6; k++) { var px = 150 + (Math.random() - .5) * 60, py = 120 + (Math.random() - .5) * 60; g.beginPath(); g.moveTo(px, py); for (var j = 0; j < 6; j++) { px += (Math.random() - .5) * 90; py += (Math.random() - .5) * 90; g.lineTo(px, py); } g.stroke(); }
-      var vg = g.createRadialGradient(128, 160, 40, 128, 160, 200); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.7)'); g.fillStyle = vg; g.fillRect(0, 0, 256, 320);
+      var vg = g.createRadialGradient(128, 160, 40, 128, 160, 200); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.45)'); g.fillStyle = vg; g.fillRect(0, 0, 256, 320);
       var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
     })();
-    var mMir = new THREE.MeshStandardMaterial({ color: 0xa5b2b6, roughness: 0.05, metalness: 0.9, map: mirTex, emissive: 0xffffff, emissiveMap: mirTex, emissiveIntensity: 0.4 });
+    var mMir = new THREE.MeshStandardMaterial({ color: 0xa5b2b6, roughness: 0.05, metalness: 0.9, map: mirTex, emissive: 0xffffff, emissiveMap: mirTex, emissiveIntensity: 0.75 });
     var mir = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.7), mMir); mir.position.set(0.035, 1.6, sz); mir.rotation.y = Math.PI / 2; G.add(mir);
     box(0.03, 0.78, 0.63, mRust, 0.016, 1.6, sz, 1); // frame behind mirror
     // shelf with jars above the toilet
     box(0.2, 0.03, 0.7, mWood, W - 0.11, 1.45, tzc, 1, true);
     [[-0.22, 0.09], [0, 0.13], [0.2, 0.07]].forEach(function (o, i) { var j = add(new THREE.CylinderGeometry(0.035, 0.035, o[1], 8), new THREE.MeshStandardMaterial({ color: [0x6a5a3a, 0x4a5a52, 0x5a3a3a][i], roughness: 0.4, metalness: 0.1 }), W - 0.11, 1.465 + o[1] / 2, tzc + o[0]); });
 
+
+    // ---------- tub polish: rim, dirty water, taps ----------
+    box(tx1 - tx0, 0.03, tz1, mPorc, (tx0 + tx1) / 2, 0.655, tz1 / 2 - 0.0, 1).scale.set(1, 1, 1);
+    var tw = new THREE.Mesh(new THREE.PlaneGeometry(tx1 - tx0 - 0.16, tz1 - 0.14), new THREE.MeshStandardMaterial({ color: 0x1b2a1c, roughness: 0.04, metalness: 0.4, transparent: true, opacity: 0.93 }));
+    tw.rotation.x = -Math.PI / 2; tw.position.set((tx0 + tx1) / 2, 0.5, (tz1 - 0.07) / 2); G.add(tw);
+    add(new THREE.CylinderGeometry(0.02, 0.02, 0.12, 8), mChrome, tx1 - 0.15, 0.7, 0.07); var tt = add(new THREE.CylinderGeometry(0.014, 0.014, 0.12, 8), mChrome, tx1 - 0.15, 0.78, 0.12); tt.rotation.x = Math.PI / 2;
+    // ---------- Poly Haven CC0 props (glTF 1k), loaded async ----------
+    function props() {
+      var L = new THREE.GLTFLoader(); L.setCrossOrigin('anonymous');
+      var B = 'https://dl.polyhaven.org/file/ph-assets/Models/gltf/1k/';
+      function put(id, h, x, y, z, ry, rz) {
+        L.load(B + id + '/' + id + '_1k.gltf', function (g) {
+          var o = g.scene, bb = new THREE.Box3().setFromObject(o), sz3 = new THREE.Vector3(); bb.getSize(sz3);
+          var k = h / Math.max(sz3.x, sz3.y, sz3.z); o.scale.setScalar(k); bb.setFromObject(o);
+          o.position.set(x, y - bb.min.y, z); o.rotation.y = ry || 0; if (rz) o.rotation.z = rz;
+          o.traverse(function (m) { if (m.isMesh) { m.castShadow = false; m.receiveShadow = true; if (m.material.map) m.material.map.anisotropy = 8; } });
+          G.add(o);
+        }, undefined, function () {});
+      }
+      put('plunger', 0.55, W - 0.2, 0, tzc + 0.62, 0.4, 0.18);
+      put('multi_cleaner_bottle', 0.27, 0.3, 0.86, sz + 0.2, 1.0);
+      put('medical_box', 0.26, W - 0.12, 1.465, tzc + 0.12, -1.57);
+      put('rubber_duck_toy', 0.13, (tx0 + tx1) / 2 + 0.2, 0.47, 0.35, 2.5);
+    }
+    if (global.THREE && THREE.GLTFLoader) props();
+    else { var sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js'; sc.onload = function () { if (THREE.GLTFLoader) props(); }; document.head.appendChild(sc); }
     // ---------- door on south wall, hinged at x=0.55 ----------
     var dw = 0.85, dg = new THREE.BoxGeometry(dw, 2.0, 0.04); dg.translate(dw / 2, 1.0, 0);
     var door = new THREE.Mesh(dg, mWood); door.position.set(0.55, 0, D - 0.02); door.castShadow = true; door.receiveShadow = true; G.add(door);
