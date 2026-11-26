@@ -139,9 +139,15 @@
     interact.push({ id: 'door', name: 'الباب', pos: new THREE.Vector3(1.0, 1, D - 0.5), radius: 1.1, activate: function () { dd.target = dd.target < 0.1 ? 1.6 : 0; } });
     var shut = { x0: 0.5, z0: D - 0.1, x1: 1.46, z1: D };
 
-    // ---------- small boarded window (north wall, west half) ----------
-    box(0.7, 0.8, 0.03, new THREE.MeshBasicMaterial({ color: 0x142030 }), 0.95, 1.65, 0.02, 1);
-    for (var b = 0; b < 3; b++) { var pl = box(0.9, 0.1, 0.03, mWood, 0.95, 1.4 + b * 0.25, 0.05, 1); pl.rotation.z = (b - 1) * 0.08; }
+    // ---------- extra furniture ----------
+    var mDark = new THREE.MeshStandardMaterial({ color: 0x2c241d, roughness: 0.8, metalness: 0 });
+    box(1.1, 1.9, 0.45, mDark, W - 1.0, 0.95, D - 0.25, 1, true); box(0.5, 0.8, 0.02, mWood, W - 1.28, 1.2, D - 0.49, 1); box(0.5, 0.8, 0.02, mWood, W - 0.72, 1.2, D - 0.49, 1); // wall cabinet
+    col(W - 1.6, D - 0.5, W - 0.4, D);
+    var bk = add(new THREE.CylinderGeometry(0.28, 0.22, 0.6, 14, 1, true), new THREE.MeshStandardMaterial({ color: 0x5b4630, roughness: 0.95, side: THREE.DoubleSide }), W - 2.2, 0.3, D - 0.45, 0, true); col(W - 2.55, D - 0.8, W - 1.85, D - 0.1);
+    box(1.2, 0.03, 0.3, mWood, 2.2, 1.7, D - 0.16, 1, true); box(0.05, 0.25, 0.05, mRust, 1.7, 1.58, D - 0.14, 1); box(0.05, 0.25, 0.05, mRust, 2.7, 1.58, D - 0.14, 1);
+    box(0.45, 0.4, 0.45, mConc, 3.7, 0.2, 0.3, 1, true); col(3.45, 0, 3.95, 0.55); // concrete stool by the north wall
+    var L2 = new THREE.PointLight(0x9fb6c8, 0.9, 6, 2); L2.position.set(W - 1.2, 2.0, 1.4); G.add(L2);
+    box(0.3, 0.06, 0.12, new THREE.MeshBasicMaterial({ color: 0xc6d8e6 }), W - 1.2, 2.4, 1.4, 1); // second light (cold tube)
 
     // ---------- floor: puddle, drain, tile debris, drips ----------
     var drain = add(new THREE.CylinderGeometry(0.1, 0.1, 0.015, 18), new THREE.MeshStandardMaterial({ color: 0x1a1a19, roughness: 0.6, metalness: 0.6 }), W * 0.45, 0.008, D * 0.5);
