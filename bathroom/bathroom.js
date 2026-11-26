@@ -162,9 +162,9 @@
     // ---------- ceiling lamp (one bulb) + stains ----------
     box(1.3, 0.06, 0.16, new THREE.MeshStandardMaterial({ color: 0x777b7d, roughness: 0.6 }), W / 2, H - 0.03, D / 2, 1);
     var bulbM = new THREE.MeshBasicMaterial({ color: 0xdff0ff }); var bulb = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.03, 0.1), bulbM); bulb.position.set(W / 2, H - 0.075, D / 2); G.add(bulb);
-    var L = new THREE.PointLight(0xcfe6ff, 1.5, 10, 2); L.position.set(W / 2, H - 0.25, D / 2); L.castShadow = high; if (high) { L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0008; } G.add(L);
-    flick.push({ L: L, base: 1.5, bulb: bulbM });
-    G.add(new THREE.HemisphereLight(0x2c3c48, 0x101214, high ? 0.05 : 0.05));
+    var L = new THREE.SpotLight(0xcfe6ff, 7, 7, 0.62, 0.9, 2); L.position.set(W / 2, H - 0.15, D / 2); L.target.position.set(W / 2, 0, D / 2); G.add(L.target); L.castShadow = high; if (high) { L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0008; } G.add(L);
+    flick.push({ L: L, base: 7, bulb: bulbM });
+    G.add(new THREE.HemisphereLight(0x1c2630, 0x0a0b0c, 0.015));
     var stT = (function () { var c = document.createElement('canvas'); c.width = 64; c.height = 256; var g = c.getContext('2d'); var gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(70,35,18,0)'); gr.addColorStop(0.12, 'rgba(70,35,18,0.55)'); gr.addColorStop(1, 'rgba(40,25,15,0)'); g.fillStyle = gr; g.fillRect(16, 0, 32, 256); return new THREE.CanvasTexture(c); })();
     var mSt = new THREE.MeshBasicMaterial({ map: stT, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
 
