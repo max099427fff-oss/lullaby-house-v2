@@ -17,7 +17,7 @@ canvas{display:block}
 <div id="hud"></div><div id="prompt"></div>
 <div id="joy"><div id="knob"></div></div><div id="bf">🔦</div><div id="bi">فتح</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-<script src="bathroom/bathroom.js?v=12"></script>
+<script src="bathroom/bathroom.js?v=13"></script>
 <script>
 var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high';
 var renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -29,8 +29,8 @@ var scene = new THREE.Scene(); scene.background = new THREE.Color(0x030405); sce
 var camera = new THREE.PerspectiveCamera(70, innerWidth / innerHeight, 0.05, 80); camera.rotation.order = 'YXZ'; scene.add(camera);
 var bath = BathroomModule.build(THREE, { quality: HIGH ? 'high' : 'normal', renderer: renderer });
 scene.add(bath.group);
-scene.add(new THREE.AmbientLight(0x1a1e26, 0.08));
-var flash = new THREE.SpotLight(0xfff0d6, 2.4, 14, 0.36, 0.7, 1.6); flash.castShadow = false; flash.shadow.mapSize.set(HIGH ? 1024 : 512, HIGH ? 1024 : 512); flash.shadow.bias = -0.0004;
+scene.add(new THREE.AmbientLight(0x10141a, 0.02));
+var flash = new THREE.SpotLight(0xfff0d6, 1.2, 10, 0.3, 0.8, 1.8); flash.castShadow = false; flash.shadow.mapSize.set(HIGH ? 1024 : 512, HIGH ? 1024 : 512); flash.shadow.bias = -0.0004;
 camera.add(flash); flash.position.set(0.15, -0.1, 0); camera.add(flash.target); flash.target.position.set(0, 0, -6);
 var P = { x: bath.spawn.x, z: bath.spawn.z, yaw: bath.spawn.yaw, pitch: 0, eye: 1.6 };
 if (Q.get('at')) { var a = Q.get('at').split(','); P.x = +a[0]; P.z = +a[1]; if (a[2]) P.eye = +a[2]; }
