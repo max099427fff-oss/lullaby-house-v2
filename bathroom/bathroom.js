@@ -152,9 +152,9 @@
     // ---------- floor: puddle, drain, tile debris, drips ----------
     var drain = add(new THREE.CylinderGeometry(0.1, 0.1, 0.015, 18), new THREE.MeshStandardMaterial({ color: 0x1a1a19, roughness: 0.6, metalness: 0.6 }), W * 0.45, 0.008, D * 0.5);
     var pg = new THREE.CircleGeometry(0.5, 32); pg.rotateX(-Math.PI / 2); (function () { var a = pg.attributes.position; for (var i = 1; i < a.count; i++) { var an = Math.atan2(a.getZ(i), a.getX(i)), k = 1 + 0.25 * Math.sin(an * 3 + 1) + 0.12 * Math.sin(an * 5 + 2); a.setXYZ(i, a.getX(i) * k, 0, a.getZ(i) * k); } })();
-    var pud = new THREE.Mesh(pg, mWater); pud.position.set(W * 0.45, 0.006, D * 0.5 + 0.1); pud.scale.set(1.2, 1, 0.9); G.add(pud);
+    // puddle removed (user: clean floor)
     var pud2 = new THREE.Mesh(pg, mBlood); pud2.position.set(W * 0.7, 0.007, D * 0.72); pud2.scale.set(0.6, 1, 0.5); G.add(pud2);
-    for (var sh = 0; sh < 34; sh++) { var s = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.01, 0.07), mPorcD); s.position.set(0.6 + Math.random() * (W - 1.4), 0.006, 0.9 + Math.random() * (D - 1.6)); s.rotation.y = Math.random() * 6; G.add(s); }
+    // tile debris removed (user: clean floor)
     var dm = new THREE.MeshStandardMaterial({ color: 0x9db4b8, roughness: 0.1, transparent: true, opacity: 0.8 });
     var dr = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), dm); dr.position.set(tx0 + 0.9, 0.9, 0.15); G.add(dr); drips.push({ m: dr, t: 0, fast: false, y0: 0.82, x: tx0 + 0.9 });
 
