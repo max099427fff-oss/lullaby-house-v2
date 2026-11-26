@@ -31,6 +31,9 @@
     function col(x0, z0, x1, z1) { colliders.push({ x0: x0, z0: z0, x1: x1, z1: z1 }); }
 
     var mFloor = pbr('brown_floor_tiles', 0xa39d94, 1.1), mTile = pbr("long_white_tiles", 0x8d8b84, 1.0), mPlaster = pbr('damaged_plaster', 0x8a8f8a, 1.3), mCeil = pbr('ceiling_interior', 0x7d7a74, 1.0), mConc = pbr('chipped_concrete', 0x85827c, 1.2);
+    mTile.color.setHex(0x2e78a8); mTile.roughness = 0.42; mTile.metalness = 0.05;
+    mPlaster = new THREE.MeshStandardMaterial({ color: 0x3c4147, roughness: 0.92, metalness: 0 });
+    mCeil = new THREE.MeshStandardMaterial({ color: 0x25272b, roughness: 0.95, metalness: 0 });
     var mPorc = new THREE.MeshStandardMaterial({ color: 0xc4c0b3, roughness: 0.22, metalness: 0.02 });
     var mPorcD = new THREE.MeshStandardMaterial({ color: 0x9a9688, roughness: 0.38, metalness: 0.02 });
     var mChrome = new THREE.MeshStandardMaterial({ color: 0x9aa2a7, roughness: 0.28, metalness: 0.85 });
