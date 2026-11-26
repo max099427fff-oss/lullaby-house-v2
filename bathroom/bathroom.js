@@ -1,270 +1,152 @@
-/* BathroomModule: large abandoned institutional bathroom (25 x 20 m, 10 m high).
+/* BathroomModule: small abandoned home bathroom (3.4 x 3.0 m, 2.6 m high), horror-realistic.
    API: var bath = BathroomModule.build(THREE, { quality:'high'|'normal', renderer })
-        bath.group        THREE.Group, add to scene (origin = north-west floor corner, y up)
-        bath.update(dt)   flicker, drips, door animation
-        bath.interactables [{id,name,pos:Vector3,radius,activate()}]
-        bath.bounds       {room:{x0,z0,x1,z1,h}, colliders:[{x0,z0,x1,z1}]}
-        bath.spawn        {x,y,z,yaw}
-   three.js r128 only. Poly Haven CC0 textures, loaded lazily (2K normal, 4K colour in high). */
+        bath.group, bath.update(dt), bath.interactables [{id,name,pos,radius,activate()}],
+        bath.bounds {room:{x0,z0,x1,z1,h}, colliders:[{x0,z0,x1,z1}]}, bath.spawn {x,y,z,yaw}
+   Origin = north-west floor corner, y up. three.js r128 only. Poly Haven CC0 textures (colour 4K in high, else 2K; normal/rough/AO 2K).
+   The earlier 25x20x10 m hall version is kept in bathroom_hall_v1.js (not used). */
 (function (global) {
-  var W = 25, D = 20, H = 10;
+  var W = 3.4, D = 3.0, H = 2.6;
   var PH = 'https://dl.polyhaven.org/file/ph-assets/Textures/jpg/';
   function build(THREE, opt) {
     opt = opt || {};
     var high = opt.quality === 'high';
     var G = new THREE.Group(); G.name = 'BathroomModule';
-    var colliders = [], interact = [], flick = [], drips = [], doors = [];
+    var colliders = [], interact = [], flick = [], doors = [], drips = [];
     var maxAniso = opt.renderer ? opt.renderer.capabilities.getMaxAnisotropy() : 8;
-    var TL = new THREE.TextureLoader(); TL.crossOrigin = 'anonymous';
-    var texCache = {};
-    function tex(url, srgb) {
-      if (texCache[url]) return texCache[url];
-      var t = TL.load(url); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = Math.min(high ? 16 : 8, maxAniso);
-      if (srgb) t.encoding = THREE.sRGBEncoding; texCache[url] = t; return t;
-    }
-    // PBR material from a Poly Haven id. Colour 4K in high, 2K otherwise. normal/rough/AO 2K.
+    var TL = new THREE.TextureLoader(); TL.crossOrigin = 'anonymous'; var tc = {};
+    function tex(url, srgb) { if (tc[url]) return tc[url]; var t = TL.load(url); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = Math.min(high ? 16 : 8, maxAniso); if (srgb) t.encoding = THREE.sRGBEncoding; tc[url] = t; return t; }
     function pbr(id, tint, ns) {
       var cr = high ? '4k' : '2k';
-      var m = new THREE.MeshStandardMaterial({
-        color: tint === undefined ? 0xffffff : tint,
-        map: tex(PH + cr + '/' + id + '/' + id + '_diff_' + cr + '.jpg', true),
-        normalMap: tex(PH + '2k/' + id + '/' + id + '_nor_gl_2k.jpg'),
-        roughnessMap: tex(PH + '2k/' + id + '/' + id + '_rough_2k.jpg'),
-        aoMap: tex(PH + '2k/' + id + '/' + id + '_ao_2k.jpg'), roughness: 1, metalness: 0
-      });
+      var m = new THREE.MeshStandardMaterial({ color: tint === undefined ? 0xffffff : tint, map: tex(PH + cr + '/' + id + '/' + id + '_diff_' + cr + '.jpg', true), normalMap: tex(PH + '2k/' + id + '/' + id + '_nor_gl_2k.jpg'), roughnessMap: tex(PH + '2k/' + id + '/' + id + '_rough_2k.jpg'), aoMap: tex(PH + '2k/' + id + '/' + id + '_ao_2k.jpg'), roughness: 1, metalness: 0 });
       m.normalScale = new THREE.Vector2(ns || 1, ns || 1); return m;
     }
-    function uvs(geo, su, sv) { // tile texture in metres
-      var a = geo.attributes.uv; for (var i = 0; i < a.count; i++) a.setXY(i, a.getX(i) * su, a.getY(i) * sv);
-      geo.setAttribute('uv2', a.clone()); return geo;
-    }
-    function plane(w, h, tile) { return uvs(new THREE.PlaneGeometry(w, h), w / tile, h / tile); }
-    function put(geo, mat, x, y, z, rx, ry, shadow) {
-      var m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx || 0, ry || 0, 0);
-      m.castShadow = !!shadow; m.receiveShadow = true; G.add(m); return m;
-    }
+    function uvs(g, su, sv) { var a = g.attributes.uv; for (var i = 0; i < a.count; i++) a.setXY(i, a.getX(i) * su, a.getY(i) * sv); g.setAttribute('uv2', a.clone()); return g; }
+    function add(geo, mat, x, y, z, ry, shadow) { var m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.y = ry || 0; m.castShadow = !!shadow; m.receiveShadow = true; G.add(m); return m; }
     function box(w, h, d, mat, x, y, z, tile, shadow) {
-      var g = new THREE.BoxGeometry(w, h, d);
-      var a = g.attributes.uv, t = tile || 1;
+      var g = new THREE.BoxGeometry(w, h, d), a = g.attributes.uv, t = tile || 1;
       for (var i = 0; i < a.count; i++) a.setXY(i, a.getX(i) * Math.max(w, d) / t, a.getY(i) * Math.max(h, Math.min(w, d)) / t);
-      g.setAttribute('uv2', a.clone());
-      return put(g, mat, x, y, z, 0, 0, shadow);
-    }
-    function inst(geo, mat, list, shadow) { // list of [x,y,z,ry,sx,sy,sz]
-      var im = new THREE.InstancedMesh(geo, mat, list.length), d = new THREE.Object3D();
-      for (var i = 0; i < list.length; i++) {
-        var p = list[i]; d.position.set(p[0], p[1], p[2]); d.rotation.set(0, p[3] || 0, 0); d.scale.set(p[4] || 1, p[5] || 1, p[6] || 1); d.updateMatrix(); im.setMatrixAt(i, d.matrix);
-      }
-      im.castShadow = !!shadow; im.receiveShadow = true; G.add(im); return im;
+      g.setAttribute('uv2', a.clone()); return add(g, mat, x, y, z, 0, shadow);
     }
     function col(x0, z0, x1, z1) { colliders.push({ x0: x0, z0: z0, x1: x1, z1: z1 }); }
 
-    // ---------- materials ----------
-    var mFloor = pbr('brown_floor_tiles', 0x9a948c, 1.1);
-    var mTile = pbr('long_white_tiles', 0xa9a79f, 1.0);
-    var mPlaster = pbr('damaged_plaster', 0x7d8480, 1.3);
-    var mCeil = pbr('ceiling_interior', 0x77746e, 1.0);
-    var mConc = pbr('chipped_concrete', 0x85827c, 1.2);
-    var mPorc = new THREE.MeshStandardMaterial({ color: 0xbdb9ae, roughness: 0.28, metalness: 0.02 });
-    var mPorcDirty = new THREE.MeshStandardMaterial({ color: 0x8e8a7c, roughness: 0.42, metalness: 0.02 });
-    var mChrome = new THREE.MeshStandardMaterial({ color: 0x8f979c, roughness: 0.3, metalness: 0.85 });
+    var mFloor = pbr('brown_floor_tiles', 0xa39d94, 1.1), mTile = pbr('long_white_tiles', 0xb3b0a6, 1.0), mPlaster = pbr('damaged_plaster', 0x8a8f8a, 1.3), mCeil = pbr('ceiling_interior', 0x7d7a74, 1.0), mConc = pbr('chipped_concrete', 0x85827c, 1.2);
+    var mPorc = new THREE.MeshStandardMaterial({ color: 0xc4c0b3, roughness: 0.22, metalness: 0.02 });
+    var mPorcD = new THREE.MeshStandardMaterial({ color: 0x9a9688, roughness: 0.38, metalness: 0.02 });
+    var mChrome = new THREE.MeshStandardMaterial({ color: 0x9aa2a7, roughness: 0.28, metalness: 0.85 });
     var mRust = new THREE.MeshStandardMaterial({ color: 0x4a2c1c, roughness: 0.75, metalness: 0.5 });
-    var mPart = new THREE.MeshStandardMaterial({ color: 0x3f4a47, roughness: 0.55, metalness: 0.25 });
-    var mirTex = (function () {
-      var c = document.createElement('canvas'); c.width = 256; c.height = 192; var g = c.getContext('2d');
-      var gr = g.createLinearGradient(0, 0, 256, 192); gr.addColorStop(0, '#24343a'); gr.addColorStop(0.5, '#3b5258'); gr.addColorStop(1, '#17242a'); g.fillStyle = gr; g.fillRect(0, 0, 256, 192);
-      g.fillStyle = 'rgba(190,215,220,0.22)'; g.fillRect(40, 0, 18, 192); g.fillRect(150, 0, 34, 192); g.fillStyle = 'rgba(210,230,235,0.28)'; g.fillRect(0, 20, 256, 6);
-      for (var i = 0; i < 160; i++) { g.fillStyle = 'rgba(30,25,18,' + (Math.random() * 0.35) + ')'; g.fillRect(Math.random() * 256, Math.random() * 192, 1 + Math.random() * 14, 1 + Math.random() * 14); }
-      var vg = g.createRadialGradient(128, 96, 40, 128, 96, 160); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.65)'); g.fillStyle = vg; g.fillRect(0, 0, 256, 192);
-      var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
-    })();
-    var mMirror = new THREE.MeshStandardMaterial({ color: 0x9aa8ac, roughness: 0.05, metalness: 0.9, map: mirTex, emissive: 0xffffff, emissiveMap: mirTex, emissiveIntensity: 0.35 });
-    var mWater = new THREE.MeshStandardMaterial({ color: 0x070b0a, roughness: 0.02, metalness: 0.65, transparent: true, opacity: 0.9, emissive: 0x0a1418, emissiveIntensity: 0.5 });
+    var mWood = new THREE.MeshStandardMaterial({ color: 0x3d2e22, roughness: 0.85, metalness: 0 });
+    var mWater = new THREE.MeshStandardMaterial({ color: 0x0a0f0d, roughness: 0.03, metalness: 0.5, transparent: true, opacity: 0.88, emissive: 0x0a1418, emissiveIntensity: 0.4 });
+    var mBlood = new THREE.MeshStandardMaterial({ color: 0x3a0606, roughness: 0.25, metalness: 0.1, transparent: true, opacity: 0.9 });
 
     // ---------- shell ----------
-    put(plane(W, D, 2.0), mFloor, W / 2, 0, D / 2, -Math.PI / 2, 0);
-    put(plane(W, D, 4.0), mCeil, W / 2, H, D / 2, Math.PI / 2, 0);
-    function wallPlane(len, x, z, ry) { // tiled lower band 2.4m + plaster above
-      var lo = new THREE.PlaneGeometry(len, 2.4); uvs(lo, len / 1.2, 2.4 / 1.2);
-      var hi = new THREE.PlaneGeometry(len, H - 2.4); uvs(hi, len / 3.0, (H - 2.4) / 3.0);
+    var fl = new THREE.PlaneGeometry(W, D); uvs(fl, W / 0.9, D / 0.9); fl.rotateX(-Math.PI / 2); add(fl, mFloor, W / 2, 0, D / 2);
+    var cl = new THREE.PlaneGeometry(W, D); uvs(cl, W / 2, D / 2); cl.rotateX(Math.PI / 2); add(cl, mCeil, W / 2, H, D / 2);
+    var TH = 1.5; // tiled height
+    function wallPlane(len, x, z, ry) {
       var g = new THREE.Group(); g.position.set(x, 0, z); g.rotation.y = ry;
-      var a = new THREE.Mesh(lo, mTile); a.position.y = 1.2; a.receiveShadow = true; g.add(a);
-      var b = new THREE.Mesh(hi, mPlaster); b.position.y = 2.4 + (H - 2.4) / 2; b.receiveShadow = true; g.add(b);
-      var trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.08, 0.06), mConc); trim.position.set(0, 2.42, 0.02); g.add(trim);
-      var base = new THREE.Mesh(new THREE.BoxGeometry(len, 0.14, 0.05), mConc); base.position.set(0, 0.07, 0.02); g.add(base);
+      var lo = new THREE.PlaneGeometry(len, TH); uvs(lo, len / 0.6, TH / 0.6); var a = new THREE.Mesh(lo, mTile); a.position.y = TH / 2; a.receiveShadow = true; g.add(a);
+      var hi = new THREE.PlaneGeometry(len, H - TH); uvs(hi, len / 1.4, (H - TH) / 1.4); var b = new THREE.Mesh(hi, mPlaster); b.position.y = TH + (H - TH) / 2; b.receiveShadow = true; g.add(b);
+      var trim = new THREE.Mesh(new THREE.BoxGeometry(len, 0.04, 0.025), mConc); trim.position.set(0, TH + 0.01, 0.01); g.add(trim);
+      var base = new THREE.Mesh(new THREE.BoxGeometry(len, 0.1, 0.02), mConc); base.position.set(0, 0.05, 0.01); g.add(base);
       G.add(g);
     }
-    wallPlane(W, W / 2, 0, 0);            // north, faces +z
-    wallPlane(W, W / 2, D, Math.PI);      // south
-    wallPlane(D, 0, D / 2, Math.PI / 2);  // west
-    wallPlane(D, W, D / 2, -Math.PI / 2); // east
+    wallPlane(W, W / 2, 0, 0); wallPlane(W, W / 2, D, Math.PI); wallPlane(D, 0, D / 2, Math.PI / 2); wallPlane(D, W, D / 2, -Math.PI / 2);
     col(-1, -1, W + 1, 0); col(-1, D, W + 1, D + 1); col(-1, -1, 0, D + 1); col(W, -1, W + 1, D + 1);
 
-    // ---------- columns + ceiling beams ----------
-    var colGeo = new THREE.BoxGeometry(0.7, H, 0.7); uvs(colGeo, 0.7, H / 2.5);
-    [[8.3, 7], [16.7, 7], [8.3, 13], [16.7, 13]].forEach(function (p) {
-      var c = new THREE.Mesh(colGeo, mConc); c.position.set(p[0], H / 2, p[1]); c.castShadow = true; c.receiveShadow = true; G.add(c); col(p[0] - 0.4, p[1] - 0.4, p[0] + 0.4, p[1] + 0.4);
-      box(0.9, 0.35, 0.9, mConc, p[0], H - 0.18, p[1], 2); box(0.9, 0.5, 0.9, mConc, p[0], 0.25, p[1], 2);
-    });
-    for (var bz = 0; bz <= D; bz += 5) box(W, 0.6, 0.45, mConc, W / 2, H - 0.3, bz === 0 ? 0.25 : (bz === D ? D - 0.25 : bz), 2.5);
-    for (var bx = 4; bx < W; bx += 8.3) box(0.45, 0.5, D, mConc, bx, H - 0.8, D / 2, 2.5);
-    // pipes along the ceiling
-    var pipeGeo = new THREE.CylinderGeometry(0.09, 0.09, W, 10); pipeGeo.rotateZ(Math.PI / 2);
-    inst(pipeGeo, mRust, [[W / 2, H - 1.4, 2.0], [W / 2, H - 1.7, 2.3], [W / 2, H - 1.5, 17.8]]);
-    var pipeV = new THREE.CylinderGeometry(0.07, 0.07, 3.0, 8);
-    inst(pipeV, mRust, [[1.0, H - 2.9, 2.0], [24.0, H - 3.0, 17.8], [12.5, H - 2.9, 2.3]]);
+    // ---------- bathtub along north wall (east half) ----------
+    var tx0 = 1.75, tx1 = W - 0.03, tz1 = 0.78;
+    box(tx1 - tx0, 0.12, tz1, mPorcD, (tx0 + tx1) / 2, 0.06, tz1 / 2, 1, true);               // base
+    box(tx1 - tx0, 0.52, 0.07, mPorc, (tx0 + tx1) / 2, 0.38, tz1 - 0.035, 1, true);          // front wall
+    box(0.07, 0.52, tz1, mPorc, tx0 + 0.035, 0.38, tz1 / 2, 1, true);                        // west end
+    box(0.07, 0.52, tz1, mPorc, tx1 - 0.035, 0.38, tz1 / 2, 1, true);                        // east end
+    box(tx1 - tx0 - 0.14, 0.04, tz1 - 0.1, mPorcD, (tx0 + tx1) / 2, 0.24, (tz1 - 0.07) / 2, 1);  // tub floor (inside)
+    var wtr = new THREE.Mesh(new THREE.PlaneGeometry(tx1 - tx0 - 0.2, tz1 - 0.2), mWater); wtr.rotation.x = -Math.PI / 2; wtr.position.set((tx0 + tx1) / 2, 0.36, (tz1 - 0.05) / 2); G.add(wtr);
+    var bl = new THREE.Mesh(new THREE.CircleGeometry(0.16, 20), mBlood); bl.rotation.x = -Math.PI / 2; bl.position.set(tx0 + 0.5, 0.372, 0.35); G.add(bl);
+    col(tx0, 0, tx1, tz1 + 0.02);
+    box(0.05, 0.3, 0.05, mChrome, tx0 + 0.9, 0.9, 0.06, 1); add(new THREE.CylinderGeometry(0.015, 0.015, 0.2, 8), mChrome, tx0 + 0.9, 0.78, 0.15).rotation.x = Math.PI / 2;
+    box(0.03, 0.03, 0.9, mChrome, tx1 - 0.05, 1.85, 0.4, 1); box(1.5, 0.03, 0.03, mChrome, (tx0 + tx1) / 2, 1.85, tz1 + 0.03, 1);
+    var curt = new THREE.MeshStandardMaterial({ color: 0x4d5d52, roughness: 0.95, side: THREE.DoubleSide }); var cg = new THREE.PlaneGeometry(0.9, 1.7, 5, 1);
+    add(cg, curt, tx0 + 0.4, 0.97, tz1 + 0.04, 0);
 
-    // ---------- toilet stalls (north wall, 8 stalls) ----------
-    var stallW = 2.0, stallD = 1.9, x0 = 3.0, nSt = 8;
-    var partGeo = new THREE.BoxGeometry(0.05, 1.9, stallD);
-    var partList = [], bowls = [], tanks = [], seats = [];
-    for (var s = 0; s <= nSt; s++) { partList.push([x0 + s * stallW, 0.25 + 0.95, stallD / 2, 0]); col(x0 + s * stallW - 0.03, 0, x0 + s * stallW + 0.03, stallD); }
-    inst(partGeo, mPart, partList, true);
-    var doorGeo = new THREE.BoxGeometry(stallW - 0.08, 1.8, 0.04); doorGeo.translate((stallW - 0.08) / 2, 0.9, 0);
-    for (var s2 = 0; s2 < nSt; s2++) {
-      var cx = x0 + s2 * stallW + stallW / 2;
-      bowls.push([cx, 0.2, 0.75, 0]); tanks.push([cx, 0.62, 0.22, 0]); seats.push([cx, 0.43, 0.78, 0]);
-      var dm = new THREE.Mesh(doorGeo, mPart); dm.position.set(x0 + s2 * stallW + 0.04, 0.25, stallD); dm.castShadow = true; dm.receiveShadow = true; G.add(dm);
-      var open = (s2 % 3 === 1) ? -1.2 : (s2 % 4 === 3 ? -0.5 : 0); // some doors ajar
-      dm.rotation.y = open; var dobj = { mesh: dm, target: open, cur: open }; doors.push(dobj);
-      (function (dd, nm, px) {
-        var isClosed = dd.target === 0;
-        interact.push({ id: 'stall_' + nm, name: 'باب الحمام ' + (nm + 1), pos: new THREE.Vector3(px, 1, stallD + 0.6), radius: 1.6, activate: function () { dd.target = dd.target === 0 ? -1.4 : 0; } });
-        if (isClosed) col(px - stallW / 2 + 0.05, stallD - 0.1, px + stallW / 2 - 0.05, stallD + 0.1);
-      })(dobj, s2, cx);
-    }
-    inst(new THREE.CylinderGeometry(0.2, 0.15, 0.4, 14), mPorcDirty, bowls, true);
-    inst(new THREE.BoxGeometry(0.42, 0.45, 0.2), mPorcDirty, tanks, true);
-    inst(new THREE.CylinderGeometry(0.21, 0.21, 0.04, 14), mPorc, seats);
-    var flushGeo = new THREE.CylinderGeometry(0.02, 0.02, 0.05, 6); inst(flushGeo, mChrome, tanks.map(function (t) { return [t[0], 0.88, t[2] + 0.1]; }));
+    // ---------- toilet on east wall ----------
+    var tzc = 1.85;
+    var bowl = add(new THREE.CylinderGeometry(0.2, 0.15, 0.4, 16), mPorcD, W - 0.5, 0.2, tzc, 0, true); bowl.scale.set(1.15, 1, 1);
+    add(new THREE.CylinderGeometry(0.21, 0.21, 0.04, 16), mPorc, W - 0.5, 0.42, tzc).scale.set(1.15, 1, 1);
+    box(0.2, 0.46, 0.42, mPorcD, W - 0.14, 0.62, tzc, 1, true); box(0.22, 0.04, 0.44, mPorc, W - 0.14, 0.87, tzc, 1);
+    col(W - 0.76, tzc - 0.3, W, tzc + 0.3);
+    add(new THREE.CylinderGeometry(0.02, 0.02, 0.05, 6), mChrome, W - 0.14, 0.9, tzc);
+    interact.push({ id: 'toilet', name: 'السيفون', pos: new THREE.Vector3(W - 0.9, 1, tzc), radius: 0.9, activate: function () { for (var i = 0; i < drips.length; i++) drips[i].fast = !drips[i].fast; } });
 
-    // ---------- sinks + mirrors (south wall) ----------
-    var sinkZ = D - 0.35, sinkX = [4.0, 7.2, 10.4, 14.6, 17.8, 21.0], sinkList = [], tapList = [], mirrorList = [];
-    box(21.0, 0.1, 0.62, mConc, 12.5, 0.88, D - 0.36, 2); col(2.0, D - 0.7, 23, D);
-    box(21.0, 0.8, 0.5, mPart, 12.5, 0.44, D - 0.3, 2);
-    sinkX.forEach(function (sx) { sinkList.push([sx, 0.95, sinkZ - 0.02, 0]); tapList.push([sx, 1.08, D - 0.62, 0]); });
-    inst(new THREE.CylinderGeometry(0.28, 0.2, 0.16, 16), mPorcDirty, sinkList, true);
-    inst(new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8), mChrome, tapList);
-    var crack = (function () {
-      var c = document.createElement('canvas'); c.width = 512; c.height = 512; var g = c.getContext('2d'); g.clearRect(0, 0, 512, 512);
-      g.strokeStyle = 'rgba(220,235,235,0.55)'; g.lineWidth = 1.2;
-      for (var k = 0; k < 7; k++) { var px = 256 + (Math.random() - .5) * 200, py = 256 + (Math.random() - .5) * 200; g.beginPath(); g.moveTo(px, py);
-        for (var j = 0; j < 7; j++) { px += (Math.random() - .5) * 120; py += (Math.random() - .5) * 120; g.lineTo(px, py); } g.stroke(); }
-      for (var q = 0; q < 70; q++) { g.fillStyle = 'rgba(40,36,30,' + (0.05 + Math.random() * 0.25) + ')'; g.fillRect(Math.random() * 512, Math.random() * 512, 3 + Math.random() * 28, 3 + Math.random() * 28); }
+    // ---------- sink + mirror on west wall ----------
+    var sz = 1.45;
+    box(0.45, 0.8, 0.6, mWood, 0.23, 0.4, sz, 1, true);
+    box(0.5, 0.06, 0.66, mPorc, 0.27, 0.83, sz, 1, true);
+    var bowlS = add(new THREE.CylinderGeometry(0.22, 0.16, 0.1, 18), mPorcD, 0.27, 0.85, sz); bowlS.scale.set(0.9, 1, 1.1);
+    add(new THREE.CylinderGeometry(0.018, 0.018, 0.2, 8), mChrome, 0.08, 0.96, sz);
+    var tap = add(new THREE.TorusGeometry(0.07, 0.014, 8, 12, Math.PI), mChrome, 0.14, 1.06, sz); tap.rotation.set(0, Math.PI / 2, 0);
+    col(0, sz - 0.34, 0.56, sz + 0.34);
+    var mirTex = (function () {
+      var c = document.createElement('canvas'); c.width = 256; c.height = 320; var g = c.getContext('2d');
+      var gr = g.createLinearGradient(0, 0, 256, 320); gr.addColorStop(0, '#26363c'); gr.addColorStop(0.5, '#3e555b'); gr.addColorStop(1, '#16232a'); g.fillStyle = gr; g.fillRect(0, 0, 256, 320);
+      g.fillStyle = 'rgba(200,222,228,0.2)'; g.fillRect(50, 0, 14, 320); g.fillRect(160, 0, 30, 320);
+      for (var i = 0; i < 220; i++) { g.fillStyle = 'rgba(30,25,18,' + (Math.random() * 0.4) + ')'; g.fillRect(Math.random() * 256, Math.random() * 320, 1 + Math.random() * 14, 1 + Math.random() * 14); }
+      g.strokeStyle = 'rgba(225,238,240,0.6)'; g.lineWidth = 1.3;
+      for (var k = 0; k < 6; k++) { var px = 150 + (Math.random() - .5) * 60, py = 120 + (Math.random() - .5) * 60; g.beginPath(); g.moveTo(px, py); for (var j = 0; j < 6; j++) { px += (Math.random() - .5) * 90; py += (Math.random() - .5) * 90; g.lineTo(px, py); } g.stroke(); }
+      var vg = g.createRadialGradient(128, 160, 40, 128, 160, 200); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.7)'); g.fillStyle = vg; g.fillRect(0, 0, 256, 320);
       var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
     })();
-    var mCrack = new THREE.MeshBasicMaterial({ map: crack, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, fog: false });
-    sinkX.forEach(function (sx, i) {
-      var mm = new THREE.Mesh(new THREE.BoxGeometry(1.7, 1.25, 0.04), mMirror); mm.position.set(sx, 1.95, D - 0.03); mm.receiveShadow = true; G.add(mm);
-      var fr = new THREE.Mesh(new THREE.BoxGeometry(1.8, 1.35, 0.03), mRust); fr.position.set(sx, 1.95, D - 0.015); G.add(fr);
-      if (i !== 3) { var ck = new THREE.Mesh(new THREE.PlaneGeometry(1.7, 1.25), mCrack); ck.position.set(sx, 1.95, D - 0.055); ck.rotation.y = Math.PI; G.add(ck); }
-    });
-    interact.push({ id: 'tap', name: 'الحنفية', pos: new THREE.Vector3(10.4, 1, D - 1.0), radius: 1.4, activate: function () { for (var i = 0; i < drips.length; i++) drips[i].fast = !drips[i].fast; } });
+    var mMir = new THREE.MeshStandardMaterial({ color: 0xa5b2b6, roughness: 0.05, metalness: 0.9, map: mirTex, emissive: 0xffffff, emissiveMap: mirTex, emissiveIntensity: 0.4 });
+    var mir = new THREE.Mesh(new THREE.PlaneGeometry(0.55, 0.7), mMir); mir.position.set(0.035, 1.6, sz); mir.rotation.y = Math.PI / 2; G.add(mir);
+    box(0.03, 0.78, 0.63, mRust, 0.016, 1.6, sz, 1); // frame behind mirror
+    // shelf with jars above the toilet
+    box(0.2, 0.03, 0.7, mWood, W - 0.11, 1.45, tzc, 1, true);
+    [[-0.22, 0.09], [0, 0.13], [0.2, 0.07]].forEach(function (o, i) { var j = add(new THREE.CylinderGeometry(0.035, 0.035, o[1], 8), new THREE.MeshStandardMaterial({ color: [0x6a5a3a, 0x4a5a52, 0x5a3a3a][i], roughness: 0.4, metalness: 0.1 }), W - 0.11, 1.465 + o[1] / 2, tzc + o[0]); });
 
-    // ---------- bathtubs (east wall) ----------
-    var tubZ = [3.4, 7.2, 11.0, 14.8], tubBody = [], tubInner = [];
-    tubZ.forEach(function (z) {
-      var wx = W - 1.05; // length along z: 1.9
-      box(0.9, 0.55, 1.9, mPorcDirty, wx, 0.28, z, 2, true);
-      box(0.7, 0.04, 1.7, mWater, wx, 0.5, z, 2);
-      col(W - 1.55, z - 0.97, W, z + 0.97);
-      box(0.06, 0.4, 0.06, mChrome, W - 0.2, 0.75, z - 0.55, 1); box(0.2, 0.05, 0.05, mChrome, W - 0.3, 0.95, z - 0.55, 1);
-    });
-    // curtain rail remains + torn curtain
-    var curtain = new THREE.MeshStandardMaterial({ color: 0x4a5a50, roughness: 0.95, side: THREE.DoubleSide });
-    [3.4, 11.0].forEach(function (z) { var cg = new THREE.PlaneGeometry(1.7, 1.9, 6, 1); put(cg, curtain, W - 1.55, 1.3, z, 0, Math.PI / 2, false); });
-    box(0.03, 0.03, 15.4, mChrome, W - 1.55, 2.3, 9.1, 1);
+    // ---------- door on south wall, hinged at x=0.55 ----------
+    var dw = 0.85, dg = new THREE.BoxGeometry(dw, 2.0, 0.04); dg.translate(dw / 2, 1.0, 0);
+    var door = new THREE.Mesh(dg, mWood); door.position.set(0.55, 0, D - 0.02); door.castShadow = true; door.receiveShadow = true; G.add(door);
+    var dd = { mesh: door, target: 0.5, cur: 0.5 }; doors.push(dd);
+    box(0.06, 2.06, 0.1, mConc, 0.5, 1.03, D - 0.05, 1); box(0.06, 2.06, 0.1, mConc, 1.46, 1.03, D - 0.05, 1); box(0.96, 0.06, 0.1, mConc, 0.98, 2.06, D - 0.05, 1);
+    add(new THREE.SphereGeometry(0.03, 8, 8), mChrome, 1.32, 1.0, D - 0.06);
+    interact.push({ id: 'door', name: 'الباب', pos: new THREE.Vector3(1.0, 1, D - 0.5), radius: 1.1, activate: function () { dd.target = dd.target < 0.1 ? 1.6 : 0; } });
+    var shut = { x0: 0.5, z0: D - 0.1, x1: 1.46, z1: D };
 
-    // ---------- floor drains, puddles, debris ----------
-    var drainMat = new THREE.MeshStandardMaterial({ color: 0x1b1b1a, roughness: 0.6, metalness: 0.6 });
-    var drainList = []; [[6, 6], [12.5, 10], [19, 6], [6, 14], [19, 14], [12.5, 16]].forEach(function (p) { drainList.push([p[0], 0.012, p[1], 0]); });
-    inst(new THREE.CylinderGeometry(0.28, 0.28, 0.02, 20), drainMat, drainList);
-    var puddle = new THREE.CircleGeometry(1, 40); puddle.rotateX(-Math.PI / 2);
-    (function () { var a = puddle.attributes.position; for (var i = 1; i < a.count; i++) { var ang = Math.atan2(a.getZ(i), a.getX(i)), k = 1 + 0.22 * Math.sin(ang * 3 + 1) + 0.12 * Math.sin(ang * 5 + 2); a.setXYZ(i, a.getX(i) * k, 0, a.getZ(i) * k); } })();
-    [[6, 6, 1.5], [12.5, 10, 2.1], [19, 6, 1.2], [6, 14, 1.8], [12.5, 16, 1.4], [15, 9, 1]].forEach(function (p) {
-      var m = new THREE.Mesh(puddle, mWater); m.position.set(p[0] + 0.3, 0.014, p[1] - 0.2); m.scale.set(p[2], 1, p[2] * 0.75); m.renderOrder = 2; G.add(m);
-    });
-    var shard = new THREE.BoxGeometry(0.22, 0.02, 0.18), shardList = [];
-    for (var sh = 0; sh < 36; sh++) shardList.push([2 + Math.random() * 21, 0.011, 2.4 + Math.random() * 15, Math.random() * 6, 0.5 + Math.random(), 1, 0.5 + Math.random()]);
-    inst(shard, mPorcDirty, shardList);
-    // drips from the ceiling pipes into puddles
-    var dripGeo = new THREE.SphereGeometry(0.02, 6, 6), dripMat = new THREE.MeshStandardMaterial({ color: 0x9db4b8, roughness: 0.1, transparent: true, opacity: 0.8 });
-    [[12.8, 9.8], [6.3, 6.2], [19.1, 5.8]].forEach(function (p, i) {
-      var d = new THREE.Mesh(dripGeo, dripMat); d.position.set(p[0], H - 1.5, p[1]); G.add(d); drips.push({ m: d, x: p[0], z: p[1], t: Math.random() * 3, fast: false, y0: H - 1.5 });
-    });
+    // ---------- small boarded window (north wall, west half) ----------
+    box(0.7, 0.8, 0.03, new THREE.MeshBasicMaterial({ color: 0x142030 }), 0.95, 1.65, 0.02, 1);
+    for (var b = 0; b < 3; b++) { var pl = box(0.9, 0.1, 0.03, mWood, 0.95, 1.4 + b * 0.25, 0.05, 1); pl.rotation.z = (b - 1) * 0.08; }
 
-    // ---------- entrance double door (west wall) ----------
-    var dGeo = new THREE.BoxGeometry(0.06, 2.5, 1.1); dGeo.translate(0, 1.25, 0.55);
-    var mDoor = new THREE.MeshStandardMaterial({ color: 0x3a2a1e, roughness: 0.8 });
-    var d1 = new THREE.Mesh(dGeo, mDoor); d1.position.set(0.03, 0, 8.9); d1.castShadow = true; G.add(d1);
-    var d2 = new THREE.Mesh(dGeo, mDoor); d2.position.set(0.03, 0, 11.1); d2.scale.z = -1; d2.castShadow = true; G.add(d2);
-    var dg1 = { mesh: d1, target: 0, cur: 0, axis: 'y' }, dg2 = { mesh: d2, target: 0, cur: 0, axis: 'y' }; doors.push(dg1, dg2);
-    interact.push({ id: 'entrance', name: 'الباب الكبير', pos: new THREE.Vector3(1.2, 1, 10), radius: 1.8, activate: function () { var o = dg1.target === 0; dg1.target = o ? 1.3 : 0; dg2.target = o ? -1.3 : 0; } });
-    box(0.2, 2.6, 0.12, mConc, 0.1, 1.3, 8.8, 2); box(0.2, 2.6, 0.12, mConc, 0.1, 1.3, 11.2, 2); box(0.2, 0.15, 2.5, mConc, 0.1, 2.58, 10, 2);
+    // ---------- floor: puddle, drain, tile debris, drips ----------
+    var drain = add(new THREE.CylinderGeometry(0.1, 0.1, 0.015, 18), new THREE.MeshStandardMaterial({ color: 0x1a1a19, roughness: 0.6, metalness: 0.6 }), 1.0, 0.008, 1.1);
+    var pg = new THREE.CircleGeometry(0.5, 32); pg.rotateX(-Math.PI / 2); (function () { var a = pg.attributes.position; for (var i = 1; i < a.count; i++) { var an = Math.atan2(a.getZ(i), a.getX(i)), k = 1 + 0.25 * Math.sin(an * 3 + 1) + 0.12 * Math.sin(an * 5 + 2); a.setXYZ(i, a.getX(i) * k, 0, a.getZ(i) * k); } })();
+    var pud = new THREE.Mesh(pg, mWater); pud.position.set(1.05, 0.006, 1.2); pud.scale.set(1.2, 1, 0.9); G.add(pud);
+    var pud2 = new THREE.Mesh(pg, mBlood); pud2.position.set(2.4, 0.007, 2.2); pud2.scale.set(0.6, 1, 0.5); G.add(pud2);
+    for (var sh = 0; sh < 14; sh++) { var s = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.01, 0.07), mPorcD); s.position.set(0.6 + Math.random() * 2.2, 0.006, 0.9 + Math.random() * 1.9); s.rotation.y = Math.random() * 6; G.add(s); }
+    var dm = new THREE.MeshStandardMaterial({ color: 0x9db4b8, roughness: 0.1, transparent: true, opacity: 0.8 });
+    var dr = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), dm); dr.position.set(tx0 + 0.9, 0.9, 0.15); G.add(dr); drips.push({ m: dr, t: 0, fast: false, y0: 0.82, x: tx0 + 0.9 });
 
-    // ---------- high windows (blue night, fake light shafts) ----------
-    var mWin = new THREE.MeshBasicMaterial({ color: 0x2a3d55, fog: false });
-    var shaftMat = new THREE.MeshBasicMaterial({ color: 0x6f8fb0, transparent: true, opacity: 0.035, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: false });
-    [4, 9, 14, 19].forEach(function (z) {
-      put(new THREE.PlaneGeometry(1.4, 2.4), mWin, 0.06, 7.6, z, 0, Math.PI / 2);
-      var sg = new THREE.PlaneGeometry(1.2, 9); sg.translate(0, -4.5, 0); var sm = new THREE.Mesh(sg, shaftMat); sm.position.set(0.5, 8.6, z); sm.rotation.set(0, Math.PI / 2, -0.55); G.add(sm);
+    // ---------- ceiling lamp (one bulb) + stains ----------
+    box(0.02, 0.5, 0.02, mChrome, 1.7, H - 0.25, 1.5, 1);
+    var bulbM = new THREE.MeshBasicMaterial({ color: 0xffe2b0 }); var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), bulbM); bulb.position.set(1.7, H - 0.55, 1.5); G.add(bulb);
+    var L = new THREE.PointLight(0xffd9a0, 1.5, 7, 2); L.position.set(1.7, H - 0.6, 1.5); L.castShadow = high; if (high) { L.shadow.mapSize.set(1024, 1024); L.shadow.bias = -0.0008; } G.add(L);
+    flick.push({ L: L, base: 1.5, bulb: bulbM });
+    G.add(new THREE.HemisphereLight(0x3a4658, 0x1a1612, high ? 0.55 : 0.45));
+    var stT = (function () { var c = document.createElement('canvas'); c.width = 64; c.height = 256; var g = c.getContext('2d'); var gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(70,35,18,0)'); gr.addColorStop(0.12, 'rgba(70,35,18,0.55)'); gr.addColorStop(1, 'rgba(40,25,15,0)'); g.fillStyle = gr; g.fillRect(16, 0, 32, 256); return new THREE.CanvasTexture(c); })();
+    var mSt = new THREE.MeshBasicMaterial({ map: stT, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+    [[1.5, 0.012, 0], [2.9, D - 0.012, Math.PI], [D * 0 + 0.012, 2.4, Math.PI / 2]].forEach(function (p, i) {
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 1.0), mSt); if (i === 2) m.position.set(0.012, 2.0, 2.4); else m.position.set(p[0], 2.0, p[1]); m.rotation.y = p[2]; G.add(m);
     });
 
-    // ---------- lockers (west wall), cleaning cart, wall stains ----------
-    var lockGeo = new THREE.BoxGeometry(0.5, 1.9, 0.9), lockList = [];
-    for (var lz = 1.2; lz < 8; lz += 0.92) lockList.push([0.3, 0.95, lz, 0]);
-    for (var lz2 = 12.2; lz2 < 19; lz2 += 0.92) lockList.push([0.3, 0.95, lz2, 0]);
-    inst(lockGeo, mPart, lockList, true); col(0, 0.7, 0.58, 8); col(0, 11.7, 0.58, 19.6);
-    var lockDoor = new THREE.BoxGeometry(0.03, 1.8, 0.4); lockDoor.translate(0, 0, 0.2);
-    lockList.forEach(function (p, i) { var m = new THREE.Mesh(lockDoor, mRust); var open = (i % 4 === 2); m.position.set(0.56, 0.95, p[2] - 0.4); m.rotation.y = open ? 1.1 : 0; G.add(m); });
-    box(0.9, 0.12, 0.6, mChrome, 5.2, 0.55, 17.0, 1, true); box(0.05, 0.5, 0.6, mChrome, 4.75, 0.9, 17.0, 1);
-    box(0.5, 0.45, 0.4, mPart, 5.35, 0.8, 17.0, 1, true);
-    inst(new THREE.CylinderGeometry(0.04, 0.04, 0.05, 8), mChrome, [[4.8, 0.06, 16.75, 0], [4.8, 0.06, 17.25, 0], [5.6, 0.06, 16.75, 0], [5.6, 0.06, 17.25, 0]]);
-    col(4.7, 16.6, 5.7, 17.4);
-    var stainTex = (function () {
-      var c = document.createElement('canvas'); c.width = 64; c.height = 256; var g = c.getContext('2d');
-      var gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(70,35,18,0.0)'); gr.addColorStop(0.15, 'rgba(70,35,18,0.55)'); gr.addColorStop(1, 'rgba(40,25,15,0.0)'); g.fillStyle = gr; g.fillRect(14, 0, 36, 256);
-      var t = new THREE.CanvasTexture(c); return t; })();
-    var mStain = new THREE.MeshBasicMaterial({ map: stainTex, transparent: true, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -3 });
-    [[5, 0.02, 0, 3.5], [14.5, 0.02, 0, 2.8], [22, D - 0.02, Math.PI, 3.2], [0.02, 6, Math.PI / 2, 3]].forEach(function (p, i) {
-      var m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 3.4), mStain);
-      if (i < 3) m.position.set(p[0], 4.2, p[1]); else m.position.set(p[0], 4.2, p[1]); m.rotation.y = p[2]; G.add(m);
-    });
-
-    // ---------- lights: 3 real flickering lights, fixtures are emissive ----------
-    var fixMat = new THREE.MeshStandardMaterial({ color: 0xdfe8e4, emissive: 0xcfe0d8, emissiveIntensity: 1.5 });
-    var fixList = [];
-    [[6, 5], [12.5, 5], [19, 5], [6, 10], [12.5, 10], [19, 10], [6, 15], [12.5, 15], [19, 15]].forEach(function (p) { fixList.push([p[0], H - 0.9, p[1], 0]); });
-    var fix = inst(new THREE.BoxGeometry(1.4, 0.06, 0.18), fixMat, fixList);
-    var lampMats = [];
-    fixList.forEach(function (p, i) {
-      var m = fixMat.clone(); lampMats.push(m);
-    });
-    [[6.3, 4.0, 6.5], [12.5, 4.0, 10], [18.7, 4.0, 13.5]].forEach(function (p, i) {
-      var L = new THREE.PointLight(0xcfe0d8, 1.1, 18, 2); L.position.set(p[0], p[1] + 3.2, p[2]); G.add(L); flick.push({ L: L, base: 1.1, ph: i * 2.1, bad: i === 1 });
-    });
-    G.add(new THREE.HemisphereLight(0x3a4658, 0x1a1612, high ? 0.5 : 0.4));
-
-    // ---------- update ----------
     var T = 0;
     function update(dt) {
       T += dt;
-      for (var i = 0; i < flick.length; i++) {
-        var f = flick[i], k = f.bad ? (Math.random() < 0.05 ? 0.15 + Math.random() * 0.4 : 0.9 + Math.sin(T * 41) * 0.05) : 0.93 + Math.sin(T * 3 + f.ph) * 0.04 + (Math.random() < 0.01 ? -0.4 : 0);
-        f.L.intensity = f.base * k;
-      }
-      fixMat.emissiveIntensity = 1.3 + Math.sin(T * 38) * 0.15 + (Math.random() < 0.03 ? -0.9 : 0);
+      var f = flick[0], k = Math.random() < 0.035 ? 0.2 + Math.random() * 0.5 : 0.94 + Math.sin(T * 5) * 0.03 + Math.sin(T * 37) * 0.02;
+      f.L.intensity = f.base * k; f.bulb.color.setRGB(1, 0.89 * (0.6 + 0.4 * k), 0.69 * (0.4 + 0.6 * k));
       for (var j = 0; j < doors.length; j++) { var d = doors[j]; d.cur += (d.target - d.cur) * Math.min(1, dt * 4); d.mesh.rotation.y = d.cur; }
-      for (var q = 0; q < drips.length; q++) {
-        var dr = drips[q]; dr.t += dt * (dr.fast ? 2.6 : 1); var ph = dr.t % 2.2, y = dr.y0 - 0.5 * 9.8 * Math.max(0, ph - 1.2) * Math.max(0, ph - 1.2);
-        dr.m.visible = ph > 1.2 && y > 0.02; dr.m.position.y = Math.max(0.02, y);
-      }
+      var open = dd.target > 0.1; shut.x0 = open ? 9 : 0.5; shut.x1 = open ? 9.1 : 1.46;
+      for (var q = 0; q < drips.length; q++) { var r = drips[q]; r.t += dt * (r.fast ? 2.6 : 1); var ph = r.t % 2.4, e = Math.max(0, ph - 1.3), y = r.y0 - 0.5 * 9.8 * e * e; r.m.visible = ph > 1.3 && y > 0.37; r.m.position.set(r.x, Math.max(0.37, y), 0.15); }
     }
-    return {
-      group: G, update: update, interactables: interact,
-      bounds: { room: { x0: 0, z0: 0, x1: W, z1: D, h: H }, colliders: colliders },
-      spawn: { x: 2.0, y: 1.6, z: 10, yaw: -Math.PI / 2 }, size: { w: W, d: D, h: H }
-    };
+    colliders.push(shut);
+    return { group: G, update: update, interactables: interact, bounds: { room: { x0: 0, z0: 0, x1: W, z1: D, h: H }, colliders: colliders }, spawn: { x: 1.0, y: 1.6, z: 2.4, yaw: 0 }, size: { w: W, d: D, h: H } };
   }
   global.BathroomModule = { build: build, size: { w: W, d: D, h: H } };
 })(typeof window !== 'undefined' ? window : this);
