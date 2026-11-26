@@ -62,7 +62,7 @@
     // ---------- materials ----------
     var mFloor = pbr('brown_floor_tiles', 0x9a948c, 1.1);
     var mTile = pbr('long_white_tiles', 0xa9a79f, 1.0);
-    var mPlaster = pbr('damaged_plaster', 0x8d8a84, 1.3);
+    var mPlaster = pbr('damaged_plaster', 0x7d8480, 1.3);
     var mCeil = pbr('ceiling_interior', 0x77746e, 1.0);
     var mConc = pbr('chipped_concrete', 0x85827c, 1.2);
     var mPorc = new THREE.MeshStandardMaterial({ color: 0xbdb9ae, roughness: 0.28, metalness: 0.02 });
@@ -70,8 +70,16 @@
     var mChrome = new THREE.MeshStandardMaterial({ color: 0x8f979c, roughness: 0.3, metalness: 0.85 });
     var mRust = new THREE.MeshStandardMaterial({ color: 0x4a2c1c, roughness: 0.75, metalness: 0.5 });
     var mPart = new THREE.MeshStandardMaterial({ color: 0x3f4a47, roughness: 0.55, metalness: 0.25 });
-    var mMirror = new THREE.MeshStandardMaterial({ color: 0x0b1113, roughness: 0.06, metalness: 1, emissive: 0x050b0c, emissiveIntensity: 0.6 });
-    var mWater = new THREE.MeshStandardMaterial({ color: 0x0c1412, roughness: 0.03, metalness: 0.2, transparent: true, opacity: 0.82 });
+    var mirTex = (function () {
+      var c = document.createElement('canvas'); c.width = 256; c.height = 192; var g = c.getContext('2d');
+      var gr = g.createLinearGradient(0, 0, 256, 192); gr.addColorStop(0, '#24343a'); gr.addColorStop(0.5, '#3b5258'); gr.addColorStop(1, '#17242a'); g.fillStyle = gr; g.fillRect(0, 0, 256, 192);
+      g.fillStyle = 'rgba(190,215,220,0.22)'; g.fillRect(40, 0, 18, 192); g.fillRect(150, 0, 34, 192); g.fillStyle = 'rgba(210,230,235,0.28)'; g.fillRect(0, 20, 256, 6);
+      for (var i = 0; i < 160; i++) { g.fillStyle = 'rgba(30,25,18,' + (Math.random() * 0.35) + ')'; g.fillRect(Math.random() * 256, Math.random() * 192, 1 + Math.random() * 14, 1 + Math.random() * 14); }
+      var vg = g.createRadialGradient(128, 96, 40, 128, 96, 160); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.65)'); g.fillStyle = vg; g.fillRect(0, 0, 256, 192);
+      var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
+    })();
+    var mMirror = new THREE.MeshStandardMaterial({ color: 0x9aa8ac, roughness: 0.05, metalness: 0.9, map: mirTex, emissive: 0xffffff, emissiveMap: mirTex, emissiveIntensity: 0.35 });
+    var mWater = new THREE.MeshStandardMaterial({ color: 0x070b0a, roughness: 0.02, metalness: 0.65, transparent: true, opacity: 0.9, emissive: 0x0a1418, emissiveIntensity: 0.5 });
 
     // ---------- shell ----------
     put(plane(W, D, 2.0), mFloor, W / 2, 0, D / 2, -Math.PI / 2, 0);
@@ -171,7 +179,8 @@
     var drainMat = new THREE.MeshStandardMaterial({ color: 0x1b1b1a, roughness: 0.6, metalness: 0.6 });
     var drainList = []; [[6, 6], [12.5, 10], [19, 6], [6, 14], [19, 14], [12.5, 16]].forEach(function (p) { drainList.push([p[0], 0.012, p[1], 0]); });
     inst(new THREE.CylinderGeometry(0.28, 0.28, 0.02, 20), drainMat, drainList);
-    var puddle = new THREE.CircleGeometry(1, 28); puddle.rotateX(-Math.PI / 2);
+    var puddle = new THREE.CircleGeometry(1, 40); puddle.rotateX(-Math.PI / 2);
+    (function () { var a = puddle.attributes.position; for (var i = 1; i < a.count; i++) { var ang = Math.atan2(a.getZ(i), a.getX(i)), k = 1 + 0.22 * Math.sin(ang * 3 + 1) + 0.12 * Math.sin(ang * 5 + 2); a.setXYZ(i, a.getX(i) * k, 0, a.getZ(i) * k); } })();
     [[6, 6, 1.5], [12.5, 10, 2.1], [19, 6, 1.2], [6, 14, 1.8], [12.5, 16, 1.4], [15, 9, 1]].forEach(function (p) {
       var m = new THREE.Mesh(puddle, mWater); m.position.set(p[0] + 0.3, 0.014, p[1] - 0.2); m.scale.set(p[2], 1, p[2] * 0.75); m.renderOrder = 2; G.add(m);
     });
@@ -199,6 +208,27 @@
     [4, 9, 14, 19].forEach(function (z) {
       put(new THREE.PlaneGeometry(1.4, 2.4), mWin, 0.06, 7.6, z, 0, Math.PI / 2);
       var sg = new THREE.PlaneGeometry(1.2, 9); sg.translate(0, -4.5, 0); var sm = new THREE.Mesh(sg, shaftMat); sm.position.set(0.5, 8.6, z); sm.rotation.set(0, Math.PI / 2, -0.55); G.add(sm);
+    });
+
+    // ---------- lockers (west wall), cleaning cart, wall stains ----------
+    var lockGeo = new THREE.BoxGeometry(0.5, 1.9, 0.9), lockList = [];
+    for (var lz = 1.2; lz < 8; lz += 0.92) lockList.push([0.3, 0.95, lz, 0]);
+    for (var lz2 = 12.2; lz2 < 19; lz2 += 0.92) lockList.push([0.3, 0.95, lz2, 0]);
+    inst(lockGeo, mPart, lockList, true); col(0, 0.7, 0.58, 8); col(0, 11.7, 0.58, 19.6);
+    var lockDoor = new THREE.BoxGeometry(0.03, 1.8, 0.4); lockDoor.translate(0, 0, 0.2);
+    lockList.forEach(function (p, i) { var m = new THREE.Mesh(lockDoor, mRust); var open = (i % 4 === 2); m.position.set(0.56, 0.95, p[2] - 0.4); m.rotation.y = open ? 1.1 : 0; G.add(m); });
+    box(0.9, 0.12, 0.6, mChrome, 5.2, 0.55, 17.0, 1, true); box(0.05, 0.5, 0.6, mChrome, 4.75, 0.9, 17.0, 1);
+    box(0.5, 0.45, 0.4, mPart, 5.35, 0.8, 17.0, 1, true);
+    inst(new THREE.CylinderGeometry(0.04, 0.04, 0.05, 8), mChrome, [[4.8, 0.06, 16.75, 0], [4.8, 0.06, 17.25, 0], [5.6, 0.06, 16.75, 0], [5.6, 0.06, 17.25, 0]]);
+    col(4.7, 16.6, 5.7, 17.4);
+    var stainTex = (function () {
+      var c = document.createElement('canvas'); c.width = 64; c.height = 256; var g = c.getContext('2d');
+      var gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(70,35,18,0.0)'); gr.addColorStop(0.15, 'rgba(70,35,18,0.55)'); gr.addColorStop(1, 'rgba(40,25,15,0.0)'); g.fillStyle = gr; g.fillRect(14, 0, 36, 256);
+      var t = new THREE.CanvasTexture(c); return t; })();
+    var mStain = new THREE.MeshBasicMaterial({ map: stainTex, transparent: true, depthWrite: false, fog: true, polygonOffset: true, polygonOffsetFactor: -3 });
+    [[5, 0.02, 0, 3.5], [14.5, 0.02, 0, 2.8], [22, D - 0.02, Math.PI, 3.2], [0.02, 6, Math.PI / 2, 3]].forEach(function (p, i) {
+      var m = new THREE.Mesh(new THREE.PlaneGeometry(0.9, 3.4), mStain);
+      if (i < 3) m.position.set(p[0], 4.2, p[1]); else m.position.set(p[0], 4.2, p[1]); m.rotation.y = p[2]; G.add(m);
     });
 
     // ---------- lights: 3 real flickering lights, fixtures are emissive ----------
