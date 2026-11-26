@@ -67,7 +67,7 @@
     box(0.05, 0.3, 0.05, mChrome, tx0 + 0.9, 0.9, 0.06, 1); add(new THREE.CylinderGeometry(0.015, 0.015, 0.2, 8), mChrome, tx0 + 0.9, 0.78, 0.15).rotation.x = Math.PI / 2;
     box(0.03, 0.03, 0.9, mChrome, tx1 - 0.05, 1.85, 0.4, 1); box(1.5, 0.03, 0.03, mChrome, (tx0 + tx1) / 2, 1.85, tz1 + 0.03, 1);
     var curt = new THREE.MeshStandardMaterial({ color: 0x4d5d52, roughness: 0.95, side: THREE.DoubleSide }); var cg = new THREE.PlaneGeometry(0.9, 1.7, 5, 1);
-    add(cg, curt, tx0 + 0.4, 0.97, tz1 + 0.04, 0);
+    var cm = add(cg, curt, tx1 - 0.3, 0.97, tz1 + 0.04, 0); cm.scale.set(0.5, 1, 1);
 
     // ---------- toilet on east wall ----------
     var tzc = D * 0.55;
@@ -126,7 +126,7 @@
       put('plunger', 0.55, W - 0.2, 0, tzc + 0.62, 0.4, 0.18);
       put('multi_cleaner_bottle', 0.27, 0.3, 0.86, sz + 0.2, 1.0);
       put('medical_box', 0.26, W - 0.12, 1.465, tzc + 0.12, -1.57);
-      put('rubber_duck_toy', 0.13, (tx0 + tx1) / 2 + 0.2, 0.47, 0.35, 2.5);
+      put('rubber_duck_toy', 0.2, (tx0 + tx1) / 2 - 0.1, 0.47, 0.4, 2.2);
     }
     if (global.THREE && THREE.GLTFLoader) props();
     else { var sc = document.createElement('script'); sc.src = 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js'; sc.onload = function () { if (THREE.GLTFLoader) props(); }; document.head.appendChild(sc); }
@@ -146,8 +146,6 @@
     var bk = add(new THREE.CylinderGeometry(0.28, 0.22, 0.6, 14, 1, true), new THREE.MeshStandardMaterial({ color: 0x5b4630, roughness: 0.95, side: THREE.DoubleSide }), W - 2.2, 0.3, D - 0.45, 0, true); col(W - 2.55, D - 0.8, W - 1.85, D - 0.1);
     box(1.2, 0.03, 0.3, mWood, 2.2, 1.7, D - 0.16, 1, true); box(0.05, 0.25, 0.05, mRust, 1.7, 1.58, D - 0.14, 1); box(0.05, 0.25, 0.05, mRust, 2.7, 1.58, D - 0.14, 1);
     box(0.45, 0.4, 0.45, mConc, 3.7, 0.2, 0.3, 1, true); col(3.45, 0, 3.95, 0.55); // concrete stool by the north wall
-    var L2 = new THREE.PointLight(0x9fb6c8, 0.9, 6, 2); L2.position.set(W - 1.2, 2.0, 1.4); G.add(L2);
-    box(0.3, 0.06, 0.12, new THREE.MeshBasicMaterial({ color: 0xc6d8e6 }), W - 1.2, 2.4, 1.4, 1); // second light (cold tube)
 
     // ---------- floor: puddle, drain, tile debris, drips ----------
     var drain = add(new THREE.CylinderGeometry(0.1, 0.1, 0.015, 18), new THREE.MeshStandardMaterial({ color: 0x1a1a19, roughness: 0.6, metalness: 0.6 }), W * 0.45, 0.008, D * 0.5);
@@ -161,20 +159,36 @@
     // ---------- ceiling lamp (one bulb) + stains ----------
     box(0.02, 0.5, 0.02, mChrome, W / 2, H - 0.25, D / 2, 1);
     var bulbM = new THREE.MeshBasicMaterial({ color: 0xffe2b0 }); var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), bulbM); bulb.position.set(W / 2, H - 0.55, D / 2); G.add(bulb);
-    var L = new THREE.PointLight(0xffd9a0, 2.2, 11, 2); L.position.set(W / 2, H - 0.6, D / 2); L.castShadow = high; if (high) { L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0008; } G.add(L);
-    flick.push({ L: L, base: 2.2, bulb: bulbM });
-    G.add(new THREE.HemisphereLight(0x3a4658, 0x1a1612, high ? 0.55 : 0.45));
+    var L = new THREE.PointLight(0xffe0b0, 3.2, 12, 2); L.position.set(W / 2, H - 0.6, D / 2); L.castShadow = high; if (high) { L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0008; } G.add(L);
+    flick.push({ L: L, base: 3.2, bulb: bulbM });
+    G.add(new THREE.HemisphereLight(0x3a4658, 0x1a1612, high ? 0.1 : 0.09));
     var stT = (function () { var c = document.createElement('canvas'); c.width = 64; c.height = 256; var g = c.getContext('2d'); var gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(70,35,18,0)'); gr.addColorStop(0.12, 'rgba(70,35,18,0.55)'); gr.addColorStop(1, 'rgba(40,25,15,0)'); g.fillStyle = gr; g.fillRect(16, 0, 32, 256); return new THREE.CanvasTexture(c); })();
     var mSt = new THREE.MeshBasicMaterial({ map: stT, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
-    [[1.5, 0.012, 0], [2.9, D - 0.012, Math.PI], [D * 0 + 0.012, 2.4, Math.PI / 2]].forEach(function (p, i) {
-      var m = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 1.0), mSt); if (i === 2) m.position.set(0.012, 2.0, 2.4); else m.position.set(p[0], 2.0, p[1]); m.rotation.y = p[2]; G.add(m);
-    });
 
-    var T = 0;
+
+    // ---------- horror decals: grime, cracks, handprints, blood trail, rust ----------
+    function cv(w, h, fn) { var c = document.createElement('canvas'); c.width = w; c.height = h; fn(c.getContext('2d'), w, h); var t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; t.anisotropy = 4; return t; }
+    function decal(tx, w, h, x, y, z, ry, rx) { var m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tx, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })); m.position.set(x, y, z); m.rotation.set(rx || 0, ry || 0, 0); m.renderOrder = 2; G.add(m); return m; }
+    var tGrime = cv(8, 256, function (g, w, h) { var gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(8,6,4,0)'); gr.addColorStop(0.55, 'rgba(8,6,4,0.35)'); gr.addColorStop(1, 'rgba(6,5,3,0.88)'); g.fillStyle = gr; g.fillRect(0, 0, w, h); });
+    var gm = new THREE.MeshBasicMaterial({ map: tGrime, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3 });
+    var tCrack = cv(256, 256, function (g) { g.strokeStyle = 'rgba(8,6,4,0.95)'; g.lineCap = 'round'; function br(x, y, a, l, w) { if (l < 8 || w < 0.4) return; g.lineWidth = w; g.beginPath(); g.moveTo(x, y); var nx = x + Math.cos(a) * l, ny = y + Math.sin(a) * l; g.lineTo(nx, ny); g.stroke(); br(nx, ny, a + (Math.random() - .5) * 0.8, l * 0.8, w * 0.8); if (Math.random() < 0.5) br(nx, ny, a + (Math.random() > .5 ? 1 : -1) * (0.6 + Math.random() * 0.6), l * 0.6, w * 0.6); } br(128, 128, Math.random() * 6, 46, 3.2); br(128, 128, Math.random() * 6, 40, 2.8); br(128, 128, Math.random() * 6, 36, 2.4); });
+    var tHand = cv(128, 160, function (g) { g.fillStyle = 'rgba(95,8,8,0.88)'; g.beginPath(); g.ellipse(64, 108, 30, 34, 0, 0, 7); g.fill(); [[28, 70, -0.25, 44], [48, 56, -0.08, 52], [68, 52, 0.06, 54], [88, 60, 0.2, 46]].forEach(function (f) { g.save(); g.translate(f[0], f[1]); g.rotate(f[2]); g.fillRect(-7, -f[3] + 20, 14, f[3]); g.restore(); }); g.save(); g.translate(104, 96); g.rotate(0.9); g.fillRect(-6, -34, 13, 40); g.restore(); for (var i = 0; i < 6; i++) { g.fillRect(30 + Math.random() * 60, 130 + Math.random() * 20, 3, 10 + Math.random() * 28); } });
+    var tDrop = cv(128, 128, function (g) { g.fillStyle = 'rgba(70,4,4,0.92)'; g.beginPath(); g.ellipse(64, 64, 40, 28, 0, 0, 7); g.fill(); for (var i = 0; i < 7; i++) { g.beginPath(); g.arc(64 + (Math.random() - .5) * 110, 64 + (Math.random() - .5) * 90, 2 + Math.random() * 6, 0, 7); g.fill(); } });
+    var tRust = cv(64, 256, function (g, w, h) { var gr = g.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(90,40,14,0.7)'); gr.addColorStop(1, 'rgba(60,28,10,0)'); g.fillStyle = gr; g.fillRect(18, 0, 10, h); g.fillRect(34, 0, 6, h * 0.7); g.fillRect(26, 0, 6, h * 0.9); });
+    // cracked tiles
+    decal(tCrack, 0.9, 0.9, 2.5, 1.0, 0.014, 0); decal(tCrack, 0.8, 0.8, 4.2, 0.9, 0.014, 0); decal(tCrack, 0.9, 0.9, 0.014, 1.0, 2.0, Math.PI / 2); decal(tCrack, 0.8, 0.8, W - 0.014, 1.0, 3.5, -Math.PI / 2); decal(tCrack, 1.0, 1.0, W * 0.4, 0.007, D * 0.55, 0, -Math.PI / 2);
+    // handprints on tiles (low and smeared, leading toward the tub)
+    decal(tHand, 0.26, 0.32, 3.4, 1.15, 0.014, 0).rotation.z = 0.2; decal(tHand, 0.26, 0.32, 3.75, 0.9, 0.014, 0).rotation.z = -0.15; decal(tHand, 0.26, 0.32, 4.15, 1.2, 0.014, 0).rotation.z = 0.1; decal(tHand, 0.26, 0.32, 0.014, 0.95, 3.4, Math.PI / 2); decal(tHand, 0.26, 0.32, 0.014, 1.2, 3.0, Math.PI / 2).rotation.z = 0.3;
+    // sparse blood trail from the door to the tub, drops getting bigger
+    for (var bt = 0; bt < 11; bt++) { var u = bt / 10; var dsz = 0.12 + u * 0.22 + (bt % 3) * 0.04; decal(tDrop, dsz, dsz * 0.8, 1.3 + u * (W - 3.7) + Math.sin(bt * 2.1) * 0.12, 0.009, D - 0.9 - u * (D - 1.9) + Math.cos(bt * 1.7) * 0.1, bt * 0.7, -Math.PI / 2); }
+
+    var T = 0, fk = { seq: null, i: 0, t: 0, next: 4 };
     function update(dt) {
       T += dt;
-      var f = flick[0], k = Math.random() < 0.035 ? 0.2 + Math.random() * 0.5 : 0.94 + Math.sin(T * 5) * 0.03 + Math.sin(T * 37) * 0.02;
-      f.L.intensity = f.base * k; f.bulb.color.setRGB(1, 0.89 * (0.6 + 0.4 * k), 0.69 * (0.4 + 0.6 * k));
+      var f = flick[0], k = 1;
+      if (!fk.seq && T >= fk.next) { fk.seq = [[0.07, 0.1], [0.09, 1], [0.05, 0.0], [0.06, 0.8], [0.04, 0.05], [0.25, 1]]; fk.i = 0; fk.t = T; }
+      if (fk.seq) { var st = fk.seq[fk.i]; k = st[1]; if (T - fk.t >= st[0]) { fk.t = T; fk.i++; if (fk.i >= fk.seq.length) { fk.seq = null; fk.next = T + 6 + Math.random() * 9; k = 1; } } }
+      f.L.intensity = f.base * k; f.bulb.color.setRGB(1, 0.89 * (0.5 + 0.5 * k), 0.69 * (0.3 + 0.7 * k));
       for (var j = 0; j < doors.length; j++) { var d = doors[j]; d.cur += (d.target - d.cur) * Math.min(1, dt * 4); d.mesh.rotation.y = d.cur; }
       var open = dd.target > 0.1; shut.x0 = open ? 9 : 0.5; shut.x1 = open ? 9.1 : 1.46;
       for (var q = 0; q < drips.length; q++) { var r = drips[q]; r.t += dt * (r.fast ? 2.6 : 1); var ph = r.t % 2.4, e = Math.max(0, ph - 1.3), y = r.y0 - 0.5 * 9.8 * e * e; r.m.visible = ph > 1.3 && y > 0.37; r.m.position.set(r.x, Math.max(0.37, y), 0.15); }
