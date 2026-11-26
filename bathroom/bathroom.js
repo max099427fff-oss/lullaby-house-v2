@@ -30,7 +30,7 @@
     }
     function col(x0, z0, x1, z1) { colliders.push({ x0: x0, z0: z0, x1: x1, z1: z1 }); }
 
-    var mFloor = pbr('brown_floor_tiles', 0xa39d94, 1.1), mTile = pbr('long_white_tiles', 0xb3b0a6, 1.0), mPlaster = pbr('damaged_plaster', 0x8a8f8a, 1.3), mCeil = pbr('ceiling_interior', 0x7d7a74, 1.0), mConc = pbr('chipped_concrete', 0x85827c, 1.2);
+    var mFloor = pbr('brown_floor_tiles', 0xa39d94, 1.1), mTile = pbr("long_white_tiles", 0x8d8b84, 1.0), mPlaster = pbr('damaged_plaster', 0x8a8f8a, 1.3), mCeil = pbr('ceiling_interior', 0x7d7a74, 1.0), mConc = pbr('chipped_concrete', 0x85827c, 1.2);
     var mPorc = new THREE.MeshStandardMaterial({ color: 0xc4c0b3, roughness: 0.22, metalness: 0.02 });
     var mPorcD = new THREE.MeshStandardMaterial({ color: 0x9a9688, roughness: 0.38, metalness: 0.02 });
     var mChrome = new THREE.MeshStandardMaterial({ color: 0x9aa2a7, roughness: 0.28, metalness: 0.85 });
@@ -159,8 +159,8 @@
     // ---------- ceiling lamp (one bulb) + stains ----------
     box(0.02, 0.5, 0.02, mChrome, W / 2, H - 0.25, D / 2, 1);
     var bulbM = new THREE.MeshBasicMaterial({ color: 0xffe2b0 }); var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), bulbM); bulb.position.set(W / 2, H - 0.55, D / 2); G.add(bulb);
-    var L = new THREE.PointLight(0xffe0b0, 3.2, 12, 2); L.position.set(W / 2, H - 0.6, D / 2); L.castShadow = high; if (high) { L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0008; } G.add(L);
-    flick.push({ L: L, base: 3.2, bulb: bulbM });
+    var L = new THREE.PointLight(0xffe0b0, 1.7, 9, 2); L.position.set(W / 2, H - 0.6, D / 2); L.castShadow = high; if (high) { L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0008; } G.add(L);
+    flick.push({ L: L, base: 1.7, bulb: bulbM });
     G.add(new THREE.HemisphereLight(0x3a4658, 0x1a1612, high ? 0.1 : 0.09));
     var stT = (function () { var c = document.createElement('canvas'); c.width = 64; c.height = 256; var g = c.getContext('2d'); var gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(70,35,18,0)'); gr.addColorStop(0.12, 'rgba(70,35,18,0.55)'); gr.addColorStop(1, 'rgba(40,25,15,0)'); g.fillStyle = gr; g.fillRect(16, 0, 32, 256); return new THREE.CanvasTexture(c); })();
     var mSt = new THREE.MeshBasicMaterial({ map: stT, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
