@@ -31,7 +31,9 @@
     function col(x0, z0, x1, z1) { colliders.push({ x0: x0, z0: z0, x1: x1, z1: z1 }); }
 
     var mFloor = pbr('brown_floor_tiles', 0xa39d94, 1.1), mTile = pbr("long_white_tiles", 0x8d8b84, 1.0), mPlaster = pbr('damaged_plaster', 0x8a8f8a, 1.3), mCeil = pbr('ceiling_interior', 0x7d7a74, 1.0), mConc = pbr('chipped_concrete', 0x85827c, 1.2);
-    mTile.color.setHex(0x2e78a8); mTile.roughness = 0.42; mTile.metalness = 0.05;
+    mTile.color.setHex(0x1e3d44); mTile.roughness = 0.4; mTile.metalness = 0.05;
+    (function () { var c = document.createElement('canvas'); c.width = c.height = 1024; var g = c.getContext('2d'); g.fillStyle = '#0b0b0c'; g.fillRect(0, 0, 1024, 1024); g.fillStyle = '#b9b8aa'; g.fillRect(0, 0, 512, 512); g.fillRect(512, 512, 512, 512); g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 3; g.strokeRect(0, 0, 512, 512); g.strokeRect(512, 512, 512, 512); g.strokeRect(512, 0, 512, 512); g.strokeRect(0, 512, 512, 512);
+      var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; mFloor = new THREE.MeshStandardMaterial({ map: t, roughness: 0.3, metalness: 0.0 }); })();
     mPlaster = new THREE.MeshStandardMaterial({ color: 0x3c4147, roughness: 0.92, metalness: 0 });
     mCeil = new THREE.MeshStandardMaterial({ color: 0x25272b, roughness: 0.95, metalness: 0 });
     var mPorc = new THREE.MeshStandardMaterial({ color: 0xc4c0b3, roughness: 0.22, metalness: 0.02 });
@@ -160,11 +162,11 @@
     var dr = new THREE.Mesh(new THREE.SphereGeometry(0.012, 6, 6), dm); dr.position.set(tx0 + 0.9, 0.9, 0.15); G.add(dr); drips.push({ m: dr, t: 0, fast: false, y0: 0.82, x: tx0 + 0.9 });
 
     // ---------- ceiling lamp (one bulb) + stains ----------
-    box(0.02, 0.5, 0.02, mChrome, W / 2, H - 0.25, D / 2, 1);
-    var bulbM = new THREE.MeshBasicMaterial({ color: 0xffe2b0 }); var bulb = new THREE.Mesh(new THREE.SphereGeometry(0.06, 12, 12), bulbM); bulb.position.set(W / 2, H - 0.55, D / 2); G.add(bulb);
-    var L = new THREE.PointLight(0xffe0b0, 1.7, 9, 2); L.position.set(W / 2, H - 0.6, D / 2); L.castShadow = high; if (high) { L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0008; } G.add(L);
-    flick.push({ L: L, base: 1.7, bulb: bulbM });
-    G.add(new THREE.HemisphereLight(0x3a4658, 0x1a1612, high ? 0.1 : 0.09));
+    box(1.3, 0.06, 0.16, new THREE.MeshStandardMaterial({ color: 0x777b7d, roughness: 0.6 }), W / 2, H - 0.03, D / 2, 1);
+    var bulbM = new THREE.MeshBasicMaterial({ color: 0xdff0ff }); var bulb = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.03, 0.1), bulbM); bulb.position.set(W / 2, H - 0.075, D / 2); G.add(bulb);
+    var L = new THREE.PointLight(0xcfe6ff, 1.5, 10, 2); L.position.set(W / 2, H - 0.25, D / 2); L.castShadow = high; if (high) { L.shadow.mapSize.set(2048, 2048); L.shadow.bias = -0.0008; } G.add(L);
+    flick.push({ L: L, base: 1.5, bulb: bulbM });
+    G.add(new THREE.HemisphereLight(0x2c3c48, 0x101214, high ? 0.05 : 0.05));
     var stT = (function () { var c = document.createElement('canvas'); c.width = 64; c.height = 256; var g = c.getContext('2d'); var gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(70,35,18,0)'); gr.addColorStop(0.12, 'rgba(70,35,18,0.55)'); gr.addColorStop(1, 'rgba(40,25,15,0)'); g.fillStyle = gr; g.fillRect(16, 0, 32, 256); return new THREE.CanvasTexture(c); })();
     var mSt = new THREE.MeshBasicMaterial({ map: stT, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
 
@@ -191,7 +193,7 @@
       var f = flick[0], k = 1;
       if (!fk.seq && T >= fk.next) { fk.seq = [[0.07, 0.1], [0.09, 1], [0.05, 0.0], [0.06, 0.8], [0.04, 0.05], [0.25, 1]]; fk.i = 0; fk.t = T; }
       if (fk.seq) { var st = fk.seq[fk.i]; k = st[1]; if (T - fk.t >= st[0]) { fk.t = T; fk.i++; if (fk.i >= fk.seq.length) { fk.seq = null; fk.next = T + 6 + Math.random() * 9; k = 1; } } }
-      f.L.intensity = f.base * k; f.bulb.color.setRGB(1, 0.89 * (0.5 + 0.5 * k), 0.69 * (0.3 + 0.7 * k));
+      f.L.intensity = f.base * k; var kk = 0.25 + 0.75 * k; f.bulb.color.setRGB(0.87 * kk, 0.94 * kk, kk);
       for (var j = 0; j < doors.length; j++) { var d = doors[j]; d.cur += (d.target - d.cur) * Math.min(1, dt * 4); d.mesh.rotation.y = d.cur; }
       var open = dd.target > 0.1; shut.x0 = open ? 9 : 0.5; shut.x1 = open ? 9.1 : 1.46;
       for (var q = 0; q < drips.length; q++) { var r = drips[q]; r.t += dt * (r.fast ? 2.6 : 1); var ph = r.t % 2.4, e = Math.max(0, ph - 1.3), y = r.y0 - 0.5 * 9.8 * e * e; r.m.visible = ph > 1.3 && y > 0.37; r.m.position.set(r.x, Math.max(0.37, y), 0.15); }
