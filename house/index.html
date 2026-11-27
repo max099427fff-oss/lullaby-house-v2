@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang='ar' dir='rtl'><head><meta charset='UTF-8'>
+<meta name='viewport' content='width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover'>
+<title>البيت - الطابق الأرضي</title>
+<style>
+html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:Tahoma,Arial,sans-serif;color:#ddd;touch-action:none;-webkit-user-select:none;user-select:none}
+canvas{display:block;width:100%;height:100%}
+#lab{position:fixed;left:0;right:0;top:calc(50% + 24px);text-align:center;font-size:17px;color:#ffe9b0;text-shadow:0 1px 6px #000;pointer-events:none;min-height:24px}
+#hud{position:fixed;top:8px;left:0;right:0;text-align:center;font-size:12px;opacity:.55;pointer-events:none}
+#load{position:fixed;inset:0;background:#030303;display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .6s;z-index:5;font-size:18px}
+#load i{display:block;width:220px;height:3px;background:#222;margin-top:14px}#load b{display:block;height:3px;width:0;background:#c9a96a}
+#stick{position:fixed;left:24px;bottom:24px;width:120px;height:120px;border-radius:60px;border:2px solid #fff3;display:none}
+#knob{position:absolute;left:40px;top:40px;width:40px;height:40px;border-radius:20px;background:#fff4}
+.b{position:fixed;right:24px;width:58px;height:58px;border-radius:29px;border:2px solid #fff4;background:#0008;color:#fff;font-size:15px;display:none;text-align:center;line-height:58px}
+#bf{bottom:96px;font-size:24px}#act{bottom:24px}
+</style></head><body>
+<div id='load'><div>جاري تحميل البيت...</div><i><b id='lb'></b></i></div>
+<canvas id='c'></canvas><div id='lab'></div><div id='hud'></div>
+<div id='stick'><div id='knob'></div></div><div class='b' id='bf'>🔦</div><div class='b' id='act'>فتح</div>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'></script>
+<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/bathroom/bathroom.js'></script>
+<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/bedroom/bedroom.js'></script>
+<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/kitchen/kitchen.js'></script>
+<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/livingroom/livingroom.js'></script>
+<script>
+(function () {
+  var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
+  // track the AudioContexts the room modules create, so only the current room is audible
+  var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
+  if (OrigAC) { var WrapAC = function () { var c = new OrigAC(); ACs.push(c); return c; }; WrapAC.prototype = OrigAC.prototype; window.AudioContext = WrapAC; window.webkitAudioContext = WrapAC; }
+  var R = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, powerPreference: 'high-performance' });
+  R.setPixelRatio(Math.min(devicePixelRatio || 1, HIGH ? 2 : 1.5)); R.outputEncoding = THREE.sRGBEncoding; R.toneMapping = THREE.ACESFilmicToneMapping; R.toneMappingExposure = 1.0;
+  R.shadowMap.enabled = true; R.shadowMap.type = HIGH ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
+  var scene = new THREE.Scene(); scene.background = new THREE.Color(0x030405); scene.fog = new THREE.FogExp2(0x040506, 0.02);
+  var cam = new THREE.PerspectiveCamera(70, 1, 0.05, 40); cam.rotation.order = 'YXZ'; scene.add(cam);
+  // ---------- layout (metres, x east, z south). Corridor z 0..2.6; north rooms have their door on the south wall (z=0); south rooms are turned 180 degrees ----------
+  var CW = 2.6, CL = 12.8, CH = 2.7;
+  var defs = [
+    { key: 'bath', name: 'الحمام', mod: 'BathroomModule', cx: 3.5, cz: -2.75, rot: 0, dw: 0.95, col: 0xcfe6ff, sp: 14 },
+    { key: 'bed', name: 'غرفة النوم', mod: 'BedroomModule', cx: 10.05, cz: -2.25, rot: 0, dw: 0.9, col: 0xffc890, sp: 12 },
+    { key: 'kit', name: 'المطبخ', mod: 'KitchenModule', cx: 2.6, cz: CW + 2.1, rot: Math.PI, dw: 1.0, col: 0xd2e8d0, sp: 14 },
+    { key: 'liv', name: 'الصالة', mod: 'LivingRoomModule', cx: 9.0, cz: CW + 2.75, rot: Math.PI, dw: 0.95, col: 0xffc890, sp: 12 }
+  ];
+  var progs = [];
+  defs.forEach(function (d) {
+    var B = window[d.mod].build(THREE, { quality: QL, renderer: R });
+    d.B = B; progs.push(B.progress); B.group.position.set(d.cx, 0, d.cz); B.group.rotation.y = d.rot; scene.add(B.group);
+    d.cs = Math.cos(d.rot) > 0 ? 1 : -1; d.W = B.size.w; d.D = B.size.d; d.H = B.size.h;
+    d.doorX = B.exitDoor.x; // world door x = cx + cs*doorX
+    d.wdx = d.cx + d.cs * d.doorX;
+    // lights: replace the shadow-casting lamp by one ceiling spotlight (single-lamp pool), drop the big fill lights
+    d.keep = []; d.mainLamp = null;
+    B.group.traverse(function (o) {
+      if (!o.isLight) return;
+      if (o.isHemisphereLight) { o.intensity = 0.012; return; }
+      if (o.isDirectionalLight || o.isSpotLight) { o.visible = false; return; }
+      if (o.isPointLight) { if (o.castShadow && !d.mainLamp) { d.mainLamp = o; d.lampBase = o.intensity || 1; o.visible = false; o.castShadow = false; } else if (o.distance >= 6 || o.distance === 0) { o.visible = false; } else d.keep.push(o); }
+    });
+    var sp = new THREE.SpotLight(d.col, d.sp, 9, 0.95, 0.85, 2); sp.position.set(0, d.H - 0.2, 0.1); sp.target.position.set(0, 0, 0.1); sp.castShadow = true; sp.shadow.mapSize.set(HIGH ? 1024 : 512, HIGH ? 1024 : 512); sp.shadow.bias = -0.0008;
+    B.group.add(sp, sp.target); d.spot = sp; d.keep.forEach(function (l) { l._v = l.visible; });
+  });
+  // corridor
+  var cg = new THREE.Group(), mW = new THREE.MeshStandardMaterial({ color: 0x33373c, roughness: 0.95 }), mF = new THREE.MeshStandardMaterial({ color: 0x1b1612, roughness: 0.55, metalness: 0 }), mC = new THREE.MeshStandardMaterial({ color: 0x1d1e21, roughness: 0.95 });
+  function pl(w, h, m, x, y, z, rx, ry) { var g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.position.set(x, y, z); g.rotation.set(rx || 0, ry || 0, 0); g.receiveShadow = true; cg.add(g); return g; }
+  pl(CL, CW, mF, CL / 2, 0, CW / 2, -Math.PI / 2, 0); pl(CL, CW, mC, CL / 2, CH, CW / 2, Math.PI / 2, 0);
+  pl(CW, CH, mW, 0.01, CH / 2, CW / 2, 0, Math.PI / 2); pl(CW, CH, mW, CL - 0.01, CH / 2, CW / 2, 0, -Math.PI / 2);
+  function wallLine(z, ry, gaps) {
+    gaps.sort(function (a, b) { return a.x - b.x; }); var x = 0;
+    gaps.forEach(function (g) { var x0 = g.x - g.w / 2, x1 = g.x + g.w / 2; if (x0 > x) pl(x0 - x, CH, mW, (x + x0) / 2, CH / 2, z, 0, ry); pl(g.w, CH - 2.1, mW, g.x, 2.1 + (CH - 2.1) / 2, z, 0, ry); x = x1; });
+    if (CL > x) pl(CL - x, CH, mW, (x + CL) / 2, CH / 2, z, 0, ry);
+  }
+  var gN = [], gS = [];
+  defs.forEach(function (d) { (d.rot === 0 ? gN : gS).push({ x: d.wdx, w: d.dw + 0.16 }); });
+  wallLine(0, 0, gN); wallLine(CW, Math.PI, gS);
+  // baseboards in the corridor
+  var mT = new THREE.MeshStandardMaterial({ color: 0x120e0b, roughness: 0.8 });
+  [0.02, CW - 0.02].forEach(function (z) { var b = new THREE.Mesh(new THREE.BoxGeometry(CL, 0.12, 0.03), mT); b.position.set(CL / 2, 0.06, z); cg.add(b); });
+  [3.2, 9.6].forEach(function (x) { var l = new THREE.SpotLight(0xffd9a8, 9, 8, 1.05, 0.9, 2); l.position.set(x, CH - 0.1, CW / 2); l.target.position.set(x, 0, CW / 2); cg.add(l, l.target); var tube = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.1), new THREE.MeshBasicMaterial({ color: 0xffeccc })); tube.position.set(x, CH - 0.04, CW / 2); cg.add(tube); });
+  scene.add(cg);
+  var torch = new THREE.SpotLight(0xfff0d6, 1.2, 10, 0.3, 0.8, 1.8); torch.castShadow = false; cam.add(torch, torch.target); torch.position.set(0.15, -0.1, 0); torch.target.position.set(0, 0, -6);
+  // ---------- state ----------
+  var st = { x: 1.0, z: 1.3, yaw: -Math.PI / 2, pitch: 0, eye: 1.6 }; window.P = st;
+  var cur = -1, lastRoom = 0, audioOn = false;
+  function roomAt(x, z) { for (var i = 0; i < defs.length; i++) { var d = defs[i], lx = d.cs * (x - d.cx), lz = d.cs * (z - d.cz); if (Math.abs(lx) < d.W / 2 && Math.abs(lz) < d.D / 2) return i; } return -1; }
+  function setActive(k) {
+    cur = k; if (k >= 0) lastRoom = k;
+    defs.forEach(function (d, i) { var on = i === k; d.B.group.visible = k < 0 || on; d.spot.visible = on; d.keep.forEach(function (l) { l.visible = on && l._v; }); });
+    if (audioOn) audioFocus();
+  }
+  function audioFocus() { defs.forEach(function (d, i) { (d.ctxs || []).forEach(function (c) { try { if (i === lastRoom) c.resume(); else c.suspend(); } catch (e) { } }); }); }
+  function startAudio() {
+    if (audioOn) return; audioOn = true;
+    defs.forEach(function (d) { var n = ACs.length; try { d.B.audio.start(); } catch (e) { } d.ctxs = ACs.slice(n); });
+    audioFocus();
+  }
+  addEventListener('pointerdown', startAudio, { once: true }); addEventListener('keydown', startAudio, { once: true });
+  // ---------- collision ----------
+  function free(nx, nz) {
+    if (nx > 0.3 && nx < CL - 0.3 && nz > 0.28 && nz < CW - 0.28) return true;
+    for (var i = 0; i < defs.length; i++) {
+      var d = defs[i], B = d.B, lx = d.cs * (nx - d.cx), lz = d.cs * (nz - d.cz), b = B.bounds;
+      if (lx < b.minX || lx > b.maxX || lz < b.minZ || lz > d.D / 2 + 0.3) continue;
+      if (lz > d.D / 2 - 0.2) { if (Math.abs(lx - d.doorX) < 0.3) return true; continue; }
+      var r = 0.22, cs = B.colliders, hit = false;
+      for (var j = 0; j < cs.length; j++) { var c = cs[j]; if (lx > c.minX - r && lx < c.maxX + r && lz > c.minZ - r && lz < c.maxZ + r) { hit = true; break; } }
+      if (!hit) return true;
+    }
+    return false;
+  }
+  // ---------- input ----------
+  var keys = {}, joy = { x: 0, y: 0 }, isTouch = 'ontouchstart' in window || Q.get('touch') === '1', cv = R.domElement, ray = new THREE.Raycaster(), v2 = new THREE.Vector2();
+  function resize() { R.setSize(innerWidth, innerHeight, false); cam.aspect = innerWidth / innerHeight; cam.updateProjectionMatrix(); } addEventListener('resize', resize); resize();
+  addEventListener('keydown', function (e) { keys[e.code] = 1; if (e.code === 'KeyE') interact(); if (e.code === 'KeyF') torch.visible = !torch.visible; }); addEventListener('keyup', function (e) { keys[e.code] = 0; });
+  var look = null;
+  cv.addEventListener('pointerdown', function (e) { if (e.clientX < innerWidth * 0.4 && e.pointerType === 'touch') return; look = { id: e.pointerId, lx: e.clientX, ly: e.clientY, moved: 0 }; cv.setPointerCapture(e.pointerId); });
+  cv.addEventListener('pointermove', function (e) { if (!look || e.pointerId !== look.id) return; var dx = e.clientX - look.lx, dy = e.clientY - look.ly; look.lx = e.clientX; look.ly = e.clientY; look.moved += Math.abs(dx) + Math.abs(dy); st.yaw -= dx * 0.005; st.pitch = Math.max(-1.3, Math.min(1.3, st.pitch - dy * 0.005)); });
+  cv.addEventListener('pointerup', function (e) { if (!look || e.pointerId !== look.id) return; var m = look.moved; look = null; if (m < 10) doUse(pickAt(e.clientX, e.clientY)); });
+  if (isTouch) { ['stick', 'bf', 'act'].forEach(function (id) { document.getElementById(id).style.display = 'block'; }); }
+  var sk = document.getElementById('stick'), kn = document.getElementById('knob'), sid = null;
+  function mv(e) { var r = sk.getBoundingClientRect(), x = (e.clientX - r.left - 60) / 50, y = (e.clientY - r.top - 60) / 50, l = Math.hypot(x, y); if (l > 1) { x /= l; y /= l; } joy.x = x; joy.y = y; kn.style.transform = 'translate(' + x * 40 + 'px,' + y * 40 + 'px)'; }
+  sk.addEventListener('pointerdown', function (e) { sid = e.pointerId; sk.setPointerCapture(sid); mv(e); }); sk.addEventListener('pointermove', function (e) { if (e.pointerId === sid) mv(e); });
+  function endj() { sid = null; joy.x = joy.y = 0; kn.style.transform = ''; } sk.addEventListener('pointerup', endj); sk.addEventListener('pointercancel', endj);
+  document.getElementById('bf').onclick = function () { torch.visible = !torch.visible; };
+  document.getElementById('act').onclick = function () { interact(); };
+  function pickAt(cx, cy) {
+    v2.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1); ray.setFromCamera(v2, cam); var best = null, bd = 1e9;
+    defs.forEach(function (d) { if (!d.B.group.visible) return; var it = d.B.pick(ray, 2.6); if (it) { var o = it.object || it.mesh, p = new THREE.Vector3(); (o || d.B.group).getWorldPosition(p); var dist = Math.hypot(p.x - st.x, p.z - st.z); if (dist < bd) { bd = dist; best = { it: it, d: d }; } } });
+    return best;
+  }
+  function doUse(h) { var bed = defs[1].B; if (bed.hiding && cur === 1) { bed.use(); return; } if (!h) return; if (h.d.B.use) h.d.B.use(h.it); else if (h.d.B.toggle) h.d.B.toggle(h.it.name); }
+  function interact() { doUse(pickAt(innerWidth / 2, innerHeight / 2)); }
+  // ---------- loop ----------
+  var last = null, wasHide = false, labEl = document.getElementById('lab'), hudEl = document.getElementById('hud'), frames = 0, tF = 0;
+  function frame(t) {
+    requestAnimationFrame(frame); var dt = last ? Math.min(0.05, (t - last) / 1000) : 0.016; last = t;
+    var bed = defs[1].B, hide = bed.hiding && cur === 1;
+    var f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - joy.y, s = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x;
+    if (hide) f = s = 0; var sp = 1.7 * dt, dx = (-Math.sin(st.yaw) * f + Math.cos(st.yaw) * s) * sp, dz = (-Math.cos(st.yaw) * f - Math.sin(st.yaw) * s) * sp;
+    if (free(st.x + dx, st.z)) st.x += dx; if (free(st.x, st.z + dz)) st.z += dz;
+    var k = roomAt(st.x, st.z); if (k !== cur) setActive(k);
+    if (hide) { var hs = bed.hideSpot, d1 = defs[1]; if (!wasHide) { wasHide = true; st.yaw = hs.yaw; st.pitch = 0.05; } st.yaw = Math.max(hs.yaw - 0.9, Math.min(hs.yaw + 0.9, st.yaw)); st.pitch = Math.max(-0.35, Math.min(0.35, st.pitch)); cam.position.set(d1.cx + hs.x, hs.y, d1.cz + hs.z); }
+    else { if (wasHide) { wasHide = false; var d1b = defs[1]; st.x = d1b.cx + bed.exitSpot.x; st.z = d1b.cz + bed.exitSpot.z; } cam.position.set(st.x, st.eye, st.z); }
+    cam.rotation.set(st.pitch, st.yaw, 0);
+    if (cur >= 0) { var d = defs[cur]; d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); if (d.mainLamp) d.spot.intensity = d.sp * (d.mainLamp.intensity / d.lampBase); }
+    var h = hide ? null : pickAt(innerWidth / 2, innerHeight / 2); labEl.textContent = hide ? 'اضغط للخروج' : (h ? (h.it.noPrefix ? h.it.label : (h.it.open ? 'إغلاق: ' : 'فتح: ') + h.it.label) : '');
+    R.render(scene, cam); frames++; tF += dt; if (tF > 1) { window.__fps = frames / tF; frames = 0; tF = 0; }
+  }
+  window.H = { defs: defs, st: st, R: R, scene: scene, setActive: setActive, goto: function (i) { var d = defs[i]; st.x = d.cx + d.cs * d.B.spawn.x; st.z = d.cz + d.cs * d.B.spawn.z; st.yaw = d.B.spawn.yaw + (d.rot ? Math.PI : 0); } };
+  requestAnimationFrame(frame);
+  var chk = setInterval(function () {
+    var done = 0, total = 0; progs.forEach(function (p) { done += p.done; total += p.total; }); document.getElementById('lb').style.width = (100 * done / Math.max(1, total)) + '%';
+    if (done >= total && total > 0) { clearInterval(chk); for (var i = -1; i < defs.length; i++) { setActive(i); R.render(scene, cam); } setActive(roomAt(st.x, st.z)); window.__ready = true; setTimeout(function () { var l = document.getElementById('load'); l.style.opacity = 0; setTimeout(function () { l.style.display = 'none'; }, 700); }, 300); }
+  }, 200);
+})();
+</script></body></html>
