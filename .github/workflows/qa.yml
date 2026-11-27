@@ -33,7 +33,7 @@ jobs:
           page.on('pageerror', e => log.errors.push('pageerror: ' + e.message));
           page.on('requestfailed', r => log.failed.push(r.url() + ' ' + (r.failure() && r.failure().errorText)));
           page.on('response', r => { if (r.status() >= 400) log.failed.push(r.url() + ' HTTP ' + r.status()); });
-          await page.goto('http://localhost:8000/house/index.html?touch=1&debug=1&qa=1&v=ci', { waitUntil: 'load' });
+          await page.goto('http://localhost:8000/house/index.html?touch=1&debug=1&qa=1&nosave=1&v=ci', { waitUntil: 'load' });
           await page.waitForFunction(() => window.__ready === true, null, { timeout: 240000 });
           await page.waitForTimeout(3000);
           let n = 0;
@@ -68,11 +68,51 @@ jobs:
             await shot('event-' + ev, at(4, 1.3, E) + `H.SD.rt=-99; window.__oe=H.SD.end; if('${ev}'!=='behind'){H.SD.end=function(){};} H.SD.trigger('${ev}'); var n=0; if('${ev}'==='behind'){while(n<200 && !H.SL.visible){H.sim(0.05,1); n++;}} else {H.sim(0.05,${steps});} ${face} window.__evTicks=n;`, 400);
             await page.evaluate('H.SD.end=window.__oe;');
           }
+          // ---- phase 2: death system (DM) ----
+          log.dm = []; const dmFail = [];
+          const dmChk = (name, ok, extra) => { log.dm.push({ name, ok: !!ok, extra: extra === undefined ? '' : extra }); if (!ok) dmFail.push(name); };
+          for (let c = 0; c <= 6; c++) {
+            await shot('death-' + c, hold + `H.goto(3); P.pitch=-0.1; DM.setCount(${c});`, 1500);
+            const st = await page.evaluate('DM.state()');
+            log.dm.push({ name: 'state-' + c, state: st, fps: log.fps['death-' + c] });
+            dmChk('deaths=' + c + ' level', st.deaths === c && st.level === Math.max(0, Math.min(c - 3, 5)));
+            dmChk('deaths=' + c + ' blood', c >= 2 ? st.blood > 0 : st.blood === 0);
+            dmChk('deaths=' + c + ' blur', c >= 3 ? st.blur > 0 && st.blur <= 2.001 : st.blur === 0);
+            dmChk('deaths=' + c + ' readable (vig<=0.9, sat>=0.8)', st.vig <= 0.9 && st.sat >= 0.8);
+          }
+          await page.evaluate('DM.setCount(0)');
+          const kt = async (name, js) => {
+            await page.evaluate(js);
+            const t0 = Date.now();
+            await page.evaluate('DM.kill("ci")');
+            await page.waitForFunction('DM.dead === true', null, { timeout: 5000 }).catch(() => {});
+            const dead1 = await page.evaluate('DM.dead');
+            await page.waitForFunction('DM.dead === false', null, { timeout: 15000 }).catch(() => {});
+            const ms = Date.now() - t0;
+            const r = await page.evaluate('({dead:DM.dead,x:P.x,z:P.z,sl:H.SL.visible,hiding:H.defs[1].B.hiding,count:DM.count,ev:H.SD.ev})');
+            dmChk('kill ' + name + ': sequence ran and ended', dead1 === true && r.dead === false, ms + ' ms');
+            dmChk('kill ' + name + ': respawn at start', Math.abs(r.x - 1) < 0.01 && Math.abs(r.z - 1.3) < 0.01, JSON.stringify(r));
+            dmChk('kill ' + name + ': slenderman hidden, no event, not hiding', !r.sl && !r.ev && !r.hiding);
+            return r;
+          };
+          await page.evaluate('DM.setCount(0)');
+          let r0 = await kt('corridor', hold + at(6.4, 1.3, E));
+          dmChk('count 0 -> 1 after one kill', r0.count === 1);
+          for (let i = 0; i < 4; i++) { await kt('room' + i, hold + `H.goto(${i});`); }
+          await kt('hiding', hold + `(function(){var d=H.defs[1]; var B=d.B; H.goto(1); var it=B.interactives.find(function(i){return /\\u0627\\u062e\\u062a\\u0628\\u0627\\u0621/.test(i.label||'')}); if(it) B.use(it);})()`);
+          await page.evaluate('DM.setCount(0)');
+          await page.evaluate('DM.kill("a"); DM.kill("b");');
+          await page.waitForFunction('DM.dead === false', null, { timeout: 15000 }).catch(() => {});
+          dmChk('two kills in a row count once', (await page.evaluate('DM.count')) === 1);
+          await page.evaluate('DM.setCount(0)');
+          log.dm.push({ name: 'qa-line', text: await page.evaluate('window.__qa.text && window.__qa.text.split("\\n").pop()') });
+          log.dmFail = dmFail;
           log.qa = await page.evaluate(() => window.__qa);
           const fpsVals = Object.values(log.fps).filter(v => v > 0);
           log.minFps = fpsVals.length ? Math.min(...fpsVals) : 0;
           const bad = [];
           if (log.errors.length) bad.push('JS/console errors: ' + log.errors.length);
+          if (log.dmFail && log.dmFail.length) bad.push('DM checks failed: ' + log.dmFail.join(', '));
           if (log.failed.length) bad.push('failed loads: ' + log.failed.length);
           if (log.qa && log.qa.errors && log.qa.errors.length) bad.push('page errors: ' + log.qa.errors.length);
           if (log.minFps < 15) bad.push('fps below 15: ' + log.minFps.toFixed(1));
