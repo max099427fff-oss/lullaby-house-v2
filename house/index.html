@@ -215,7 +215,7 @@ canvas{display:block;width:100%;height:100%}
     if (name === 'watch') { ok = sdFar(6, 11); if (ok) { SD.kind = Math.random() < 0.5 ? 'idle' : 'sway'; SD.play(SD.kind); } }
     else if (name === 'torch') { if (!torch.visible) return false; ok = sdFar(6, 8); if (ok) { SD.play('sway'); SL.visible = false; torch.visible = false; SD.tOff = true; SD.t = sdR(0.3, 0.6); SD.dist0 = SD.dist || 6; } }
     else if (name === 'periph') {
-      for (var i = 0; i < 10 && !ok; i++) { var a = st.yaw + (Math.random() < 0.5 ? -1 : 1) * sdR(0.96, 1.22), r = cur === -1 ? sdR(1.3, 2) : sdR(4, 6), x = st.x - Math.sin(a) * r, z = st.z - Math.cos(a) * r; if (sdOk(x, z)) { sdPlace(x, z); ok = true; } }
+      for (var i = 0; i < 10 && !ok; i++) { var a = st.yaw + (Math.random() < 0.5 ? -1 : 1) * sdR(0.96, 1.22), r = cur === -1 ? sdR(0.9, 1.1) : sdR(4, 6), x = st.x - Math.sin(a) * r, z = st.z - Math.cos(a) * r; if (sdOk(x, z)) { sdPlace(x, z); ok = true; } }
       if (ok) { SD.play('idle'); SD.t = 0.4; }
     }
     else if (name === 'behind') { SD.ph = 0; SD.t = sdR(1.5, 2.5); SD.whisper(0.12); SD.muteT = 0.5; defs.forEach(function (d) { (d.ctxs || []).forEach(function (c) { try { c.suspend(); } catch (e) { } }); }); ok = true; }
