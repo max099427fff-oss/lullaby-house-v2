@@ -1,5 +1,10 @@
 name: qa
-on: [push, workflow_dispatch]
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   qa:
     runs-on: ubuntu-latest
@@ -84,3 +89,14 @@ jobs:
         with:
           name: qa-screens
           path: qa-out/
+      - name: Publish screenshots to branch qa-artifacts
+        if: always()
+        run: |
+          cd qa-out
+          git init -q
+          git config user.name qa-bot
+          git config user.email qa-bot@users.noreply.github.com
+          git checkout -q -b qa-artifacts
+          git add -A
+          git commit -q -m "QA screenshots for ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" qa-artifacts
