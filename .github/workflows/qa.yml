@@ -37,9 +37,9 @@ jobs:
           await page.waitForFunction(() => window.__ready === true, null, { timeout: 240000 });
           await page.waitForTimeout(3000);
           let n = 0;
-          async function shot(name, js) {
+          async function shot(name, js, wait = 1200) {
             if (js) await page.evaluate(js);
-            await page.waitForTimeout(1200);
+            await page.waitForTimeout(wait);
             const f = String(++n).padStart(2, '0') + '-' + name + '.png';
             await page.screenshot({ path: 'qa-out/' + f });
             const fps = await page.evaluate(() => window.__fps || 0);
@@ -55,14 +55,15 @@ jobs:
           await shot('corridor-mid-west', at(6.4, 1.3, W));
           await shot('corridor-end-west', at(12, 1.3, W));
           for (let i = 0; i < 4; i++) {
-            await shot('room' + i + '-door', hold + `(function(){var d=H.defs[${i}]; P.x=d.wdx; P.z=${i < 2 ? 1.0 : 1.6}; P.yaw=${i < 2 ? 'Math.PI' : '0'}; P.pitch=0;})()`);
+            await shot('room' + i + '-door', hold + `(function(){var d=H.defs[${i}]; P.x=d.wdx; P.z=1.3; P.yaw=${i < 2 ? '0' : 'Math.PI'}; P.pitch=0;})()`);
             await shot('room' + i + '-inside-a', hold + `H.goto(${i}); P.pitch=0;`);
             await shot('room' + i + '-inside-b', hold + `H.goto(${i}); P.yaw+=Math.PI; P.pitch=0;`);
           }
           try { await shot('bed-hide', hold + `(function(){var d=H.defs[1]; var B=d.B; P.x=d.cx+B.bedSpot.x; P.z=d.cz+B.bedSpot.z; P.yaw=0; B.use();})()`); } catch (e) { log.errors.push('bed-hide: ' + e.message); }
           await page.evaluate('H.defs[1].B.hiding && H.defs[1].B.use()');
           for (const ev of ['watch', 'behind', 'torch', 'periph']) {
-            await shot('event-' + ev, at(4, 1.3, E) + `H.SD.rt=-99; H.SD.trigger('${ev}'); H.sim(0.05, 45); if(H.SL.visible){P.yaw=Math.atan2(-(H.SL.position.x-P.x),-(H.SL.position.z-P.z));}`);
+            const face = ev === 'watch' || ev === 'torch' ? 'if(H.SL.visible){P.yaw=Math.atan2(-(H.SL.position.x-P.x),-(H.SL.position.z-P.z));}' : '';
+            await shot('event-' + ev, at(4, 1.3, E) + `H.SD.rt=-99; H.SD.trigger('${ev}'); var n=0; while(n<200 && !H.SL.visible){H.sim(0.05,1); n++;} ${face} window.__evTicks=n;`, ev === 'periph' ? 100 : 400);
           }
           log.qa = await page.evaluate(() => window.__qa);
           const fpsVals = Object.values(log.fps).filter(v => v > 0);
@@ -77,7 +78,6 @@ jobs:
           console.log(log.verdict, 'minFps', log.minFps);
           await br.close();
           if (bad.length) process.exit(1);
-
           JSEOF
       - name: Serve and run
         run: |
