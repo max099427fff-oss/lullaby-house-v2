@@ -171,7 +171,7 @@ canvas{display:block;width:100%;height:100%}
   // ---- fx overlay (CSS only): vignette + static
   (function () {
     var w = document.createElement('div'); w.id = 'sdfx'; w.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:3;opacity:0';
-    var n = document.createElement('div'); n.style.cssText = 'position:absolute;inset:0;image-rendering:pixelated;background-size:160px 160px;opacity:.55';
+    var n = document.createElement('div'); n.style.cssText = 'position:absolute;inset:0;image-rendering:pixelated;background-size:160px 160px;opacity:.4';
     var c = document.createElement('canvas'); c.width = c.height = 80; var x = c.getContext('2d'), im = x.createImageData(80, 80);
     for (var i = 0; i < 6400; i++) { var v = Math.random() * 255 | 0; im.data[i * 4] = im.data[i * 4 + 1] = im.data[i * 4 + 2] = v; im.data[i * 4 + 3] = 150; }
     x.putImageData(im, 0, 0); n.style.backgroundImage = 'url(' + c.toDataURL() + ')';
@@ -273,7 +273,7 @@ canvas{display:block;width:100%;height:100%}
     SD.ovT -= dt;
     if (SD.ovT <= 0) {
       SD.ovT = 0.1; var v = 0;
-      if (SL.visible) { sdDot(); v = Math.max(0, 1 - SD.dist / 9) * 0.6 + Math.min(1, SD.look / 1.5) * 0.3; }
+      if (SL.visible) { sdDot(); v = Math.max(0, 1 - SD.dist / 6) * 0.5 + Math.min(1, SD.look / 1.5) * 0.3; }
       if (SD.flash > 0) v = 1;
       if (Math.abs(v - SD.ovV) > 0.02) { SD.ovV = v; SD.fx.style.opacity = v.toFixed(2); }
       if (v > 0) SD.fxn.style.backgroundPosition = (Math.random() * 160 | 0) + 'px ' + (Math.random() * 160 | 0) + 'px';
