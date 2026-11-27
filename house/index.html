@@ -30,11 +30,12 @@ canvas{display:block;width:100%;height:100%}
    2 corridor walls sit 0.05 m inside the corridor with polygonOffset, so his door-wall boxes/planes (same plane z=0 / z=2.6) do not z-fight or show through (dotted/checker patch, panel with brown top edge)
    3 door frames of his rooms (brown jamb boxes 4a382a and pale boxes near the door gap) are dimmed (colour x0.35, material cloned) so they are not bright white
    4 corridor floor/walls darker (floor 0x0e0b09, walls 0x1c1f23, lamps 6)
+   8 room doors (his hinged doors) are animated also while the player stands in the corridor (before, update ran only for the current room, so a door opened from the corridor froze and then jumped)
    7 door gap in my corridor wall is dw+0.012 so the wall edge meets the door frame inner face exactly (no 2 cm jamb strip sticking out); Slenderman appearance = SD.pop (sting + flash + screen shake)
    6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var BUILD = 'p2-007', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var BUILD = 'p2-008', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -340,7 +341,7 @@ canvas{display:block;width:100%;height:100%}
     if (hide) { var hs = bed.hideSpot, d1 = defs[1]; if (!wasHide) { wasHide = true; st.yaw = hs.yaw; st.pitch = 0.05; } st.yaw = Math.max(hs.yaw - 0.9, Math.min(hs.yaw + 0.9, st.yaw)); st.pitch = Math.max(-0.35, Math.min(0.35, st.pitch)); cam.position.set(d1.cx + hs.x, hs.y, d1.cz + hs.z); }
     else { if (wasHide) { wasHide = false; var d1b = defs[1]; st.x = d1b.cx + bed.exitSpot.x; st.z = d1b.cz + bed.exitSpot.z; } cam.position.set(st.x, st.eye, st.z); }
     cam.rotation.set(st.pitch, st.yaw, 0); slTick(dt, hide);
-    if (cur >= 0) { var d = defs[cur]; d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); if (d.mainLamp) d.spot.intensity = d.sp * (d.mainLamp.intensity / d.lampBase); }
+    if (cur >= 0) { var d = defs[cur]; d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); if (d.mainLamp) d.spot.intensity = d.sp * (d.mainLamp.intensity / d.lampBase); } else if (cur === -1) { defs.forEach(function (d) { if (Math.abs(d.wdx - st.x) < 5) { d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); } }); } // hinge doors keep swinging when opened from the corridor
     var h = hide ? null : pickAt(innerWidth / 2, innerHeight / 2); labEl.textContent = hide ? 'اضغط للخروج' : (h ? (h.it.noPrefix ? h.it.label : (h.it.open ? 'إغلاق: ' : 'فتح: ') + h.it.label) : '');
     R.render(scene, cam); frames++; tF += dt; if (tF > 1) { window.__fps = frames / tF; frames = 0; tF = 0; }
   }
