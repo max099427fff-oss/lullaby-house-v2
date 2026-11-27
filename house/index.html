@@ -26,6 +26,7 @@ canvas{display:block;width:100%;height:100%}
 <script>
 (function () {
   /* QA_CHECKLIST (recheck before every delivery, open ?qa=1&debug=1)
+  22 phase 2 death system: DM object (counter in localStorage hh_deaths, ?nosave=1, DM.kill/setCount/reset, penalties by count, gear reset panel)
    1 ceiling lamp: dim flush fixture, no bright slab floating in the corridor ceiling
    2 corridor walls sit 0.05 m inside the corridor with polygonOffset, so his door-wall boxes/planes (same plane z=0 / z=2.6) do not z-fight or show through (dotted/checker patch, panel with brown top edge)
    3 door frames of his rooms (brown jamb boxes 4a382a and pale boxes near the door gap) are dimmed (colour x0.35, material cloned) so they are not bright white
@@ -41,7 +42,7 @@ canvas{display:block;width:100%;height:100%}
    6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var TR = true, LF = TR ? 0.32 : 0.4, FILL = TR ? 0.03 : 0.02, COR = TR ? 1.8 : 2.2, BUILD = 'p2-021', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var TR = true, LF = TR ? 0.32 : 0.4, FILL = TR ? 0.03 : 0.02, COR = TR ? 1.8 : 2.2, BUILD = 'p2-022', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -193,7 +194,7 @@ canvas{display:block;width:100%;height:100%}
     defs.forEach(function (d) { if (!d.B.group.visible) return; var it = d.B.pick(ray, 2.6); if (it) { var o = it.object || it.mesh, p = new THREE.Vector3(); (o || d.B.group).getWorldPosition(p); var dist = Math.hypot(p.x - st.x, p.z - st.z); if (dist < bd) { bd = dist; best = { it: it, d: d }; } } });
     return best;
   }
-  function doUse(h) { var bed = defs[1].B; if (bed.hiding && cur === 1) { bed.use(); return; } if (!h) return; if (h.mine) { h.mine.it.open = !h.mine.it.open; return; } if (h.d.B.use) h.d.B.use(h.it); else if (h.d.B.toggle) h.d.B.toggle(h.it.name); }
+  function doUse(h) { if (DM.dead) return; var bed = defs[1].B; if (bed.hiding && cur === 1) { bed.use(); return; } if (!h) return; if (h.mine) { h.mine.it.open = !h.mine.it.open; return; } if (h.d.B.use) h.d.B.use(h.it); else if (h.d.B.toggle) h.d.B.toggle(h.it.name); }
   function interact() { doUse(pickAt(innerWidth / 2, innerHeight / 2)); }
   // ---------- slender figure ----------
   var SL = new THREE.Group(), sm = new THREE.MeshStandardMaterial({ color: 0x0b0b0e, roughness: 0.9 }), hm = new THREE.MeshStandardMaterial({ color: 0xd9d6cf, roughness: 0.8, emissive: 0x15140f });
@@ -352,8 +353,103 @@ canvas{display:block;width:100%;height:100%}
     var dbx = document.createElement('div'); dbx.style.cssText = 'position:fixed;left:4px;top:4px;z-index:9;display:flex;gap:3px;flex-wrap:wrap;max-width:60vw;direction:ltr';
     [['Watch', 'watch'], ['Behind', 'behind'], ['Torch', 'torch'], ['Peripheral', 'periph']].forEach(function (p) { var b = document.createElement('button'); b.textContent = p[0]; b.style.cssText = 'font:11px sans-serif;padding:3px 6px;opacity:.7'; b.onclick = function () { SD.trigger(p[1]); }; dbx.appendChild(b); });
     var tb = document.createElement('button'); tb.textContent = '+Tension'; tb.style.cssText = 'font:11px sans-serif;padding:3px 6px;opacity:.7'; tb.onclick = function () { SD.addTension(0.2); tb.textContent = '+Tension ' + SD.tension.toFixed(2); }; dbx.appendChild(tb);
+    var kb = document.createElement('button'); kb.textContent = 'Kill'; kb.style.cssText = 'font:11px sans-serif;padding:3px 6px;opacity:.7'; kb.onclick = function () { DM.kill('debug'); }; dbx.appendChild(kb);
     document.body.appendChild(dbx);
   }
+
+  // ---------- DM: death counter + progressive penalties (phase 2) ----------
+  var DM_CFG = {
+    key: 'hh_deaths', showT: 0.4, fadeIn: 0.8, hold: 0.5, fadeOut: 0.8, showDist: 0.8, delay: 60, tensionDrop: 0.15, tensionMin: 0.1,
+    bloodFrom: 2, bloodOpacity: 0.85,
+    blurFrom: 3, blur0: 0.6, blurMax: 2.0, vig0: 0.3, vigStep: 0.04,
+    hueStep: 2, satStep: 0.05, shakeMax: 0.003, hbGain0: 0.05, hbGainStep: 0.025, hbBpm0: 58, hbBpmStep: 7,
+    levelMax: 5, backdrop: Q.get('dmfb') !== '1', respawn: { x: 1.0, z: 1.3, yaw: -Math.PI / 2 }
+  };
+  var DM = { count: 0, dead: false, store: 'ls', mem: 0, nosave: Q.get('nosave') === '1', fx: {}, shake: 0, hb: 0, lastReason: '', fy: 0, fp: 0 };
+  DM.level = function () { return Math.max(0, Math.min(DM.count - 3, DM_CFG.levelMax)); };
+  DM.read = function () { if (DM.nosave) return DM.mem; try { var v = parseInt(localStorage.getItem(DM_CFG.key), 10); return isNaN(v) ? 0 : Math.max(0, v); } catch (e) { DM.store = 'mem'; return DM.mem; } };
+  DM.write = function (n) { DM.mem = n; if (DM.nosave) { DM.store = 'nosave'; return; } try { localStorage.setItem(DM_CFG.key, String(n)); } catch (e) { DM.store = 'mem'; } };
+  DM.clear = function () { DM.mem = 0; if (DM.nosave) return; try { localStorage.removeItem(DM_CFG.key); } catch (e) { DM.store = 'mem'; } };
+  (function () {
+    var css = document.createElement('style'); css.textContent = '#lab,#hud,#stick,.b{z-index:4}'; document.head.appendChild(css);
+    function layer(id, z) { var d = document.createElement('div'); d.id = id; d.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:' + z + ';opacity:0'; document.body.appendChild(d); return d; }
+    var blood = layer('dm-blood', 2), blur = layer('dm-blur', 2), vig = layer('dm-vig', 2), blk = layer('dm-black', 6);
+    var R4 = 'rgba(70,0,0,.85)', T0 = 'rgba(70,0,0,0)';
+    blood.style.background = ['radial-gradient(ellipse 22% 26% at 0% 0%,' + R4 + ',' + T0 + ')', 'radial-gradient(ellipse 18% 24% at 100% 8%,' + R4 + ',' + T0 + ')', 'radial-gradient(ellipse 24% 22% at 0% 100%,' + R4 + ',' + T0 + ')', 'radial-gradient(ellipse 20% 26% at 100% 100%,' + R4 + ',' + T0 + ')', 'radial-gradient(ellipse 7% 12% at 2% 42%,' + R4 + ',' + T0 + ')', 'radial-gradient(ellipse 7% 14% at 98% 58%,' + R4 + ',' + T0 + ')', 'radial-gradient(ellipse 14% 8% at 34% 100%,' + R4 + ',' + T0 + ')', 'radial-gradient(ellipse 12% 8% at 66% 0%,' + R4 + ',' + T0 + ')', 'linear-gradient(to right,rgba(60,0,0,.55),rgba(60,0,0,0) 7%,rgba(60,0,0,0) 93%,rgba(60,0,0,.55))'].join(',');
+    vig.style.background = 'radial-gradient(ellipse at center,rgba(0,0,0,0) 55%,rgba(0,0,0,.6) 100%)';
+    blk.style.background = '#000';
+    DM.fx = { blood: blood, blur: blur, vig: vig, black: blk };
+    // settings panel (top right)
+    var gear = document.createElement('button'); gear.textContent = '\u2699'; gear.setAttribute('aria-label', 'إعدادات'); gear.style.cssText = 'position:fixed;right:6px;top:6px;z-index:8;width:34px;height:34px;border-radius:17px;border:1px solid #fff4;background:#0007;color:#fff9;font-size:18px;line-height:30px;padding:0;direction:ltr';
+    var pan = document.createElement('div'); pan.style.cssText = 'position:fixed;right:6px;top:46px;z-index:8;display:none;width:min(230px,60vw);padding:10px;border:1px solid #fff3;border-radius:8px;background:#000d;color:#ddd;direction:rtl;font-size:14px;text-align:center';
+    var cnt = document.createElement('div'); cnt.style.cssText = 'margin-bottom:8px;font-size:13px;opacity:.8';
+    var rb = document.createElement('button'); rb.textContent = 'إعادة تعيين التقدم'; rb.style.cssText = 'width:100%;min-height:44px;font-size:15px;border-radius:6px;border:1px solid #a55;background:#311;color:#fdd';
+    var cf = document.createElement('div'); cf.style.cssText = 'display:none;margin-top:8px'; var q1 = document.createElement('div'); q1.textContent = 'تصفير عدّاد الموت وكل التأثيرات؟'; q1.style.marginBottom = '6px';
+    var yes = document.createElement('button'), no = document.createElement('button'); yes.textContent = 'نعم، صفّر'; no.textContent = 'إلغاء';
+    [yes, no].forEach(function (b) { b.style.cssText = 'min-height:44px;width:48%;font-size:15px;border-radius:6px;border:1px solid #888;background:#222;color:#eee;margin:0 1%'; });
+    cf.appendChild(q1); cf.appendChild(yes); cf.appendChild(no); pan.appendChild(cnt); pan.appendChild(rb); pan.appendChild(cf);
+    function stop(e) { e.stopPropagation(); }
+    [gear, pan].forEach(function (el) { ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'mousedown', 'click'].forEach(function (ev) { el.addEventListener(ev, stop); }); });
+    gear.onclick = function () { pan.style.display = pan.style.display === 'none' ? 'block' : 'none'; cf.style.display = 'none'; cnt.textContent = 'عدد مرات الموت: ' + DM.count; };
+    rb.onclick = function () { cf.style.display = 'block'; };
+    no.onclick = function () { cf.style.display = 'none'; };
+    yes.onclick = function () { DM.reset(); cf.style.display = 'none'; cnt.textContent = 'عدد مرات الموت: 0'; };
+    document.body.appendChild(gear); document.body.appendChild(pan); DM.gear = gear; DM.pan = pan;
+  })();
+  DM.apply = function () {
+    var n = DM.count, L = DM.level(), f = DM.fx, C = DM_CFG, s = {};
+    s.blood = n >= C.bloodFrom ? C.bloodOpacity : 0;
+    var blurPx = n >= C.blurFrom ? C.blur0 + (C.blurMax - C.blur0) * L / C.levelMax : 0;
+    var hue = L * C.hueStep, sat = 1 - L * C.satStep;
+    s.blur = +blurPx.toFixed(2); s.hue = hue; s.sat = +sat.toFixed(2);
+    s.vig = n >= C.blurFrom ? +(C.vig0 + C.vigStep * L + 0.3).toFixed(2) : 0;
+    s.shake = +(C.shakeMax * L / C.levelMax).toFixed(5);
+    s.hb = L > 0 ? 1 : 0;
+    f.blood.style.opacity = s.blood;
+    f.vig.style.opacity = s.vig;
+    if (n >= C.blurFrom) {
+      if (C.backdrop) { var bf = 'blur(' + blurPx.toFixed(2) + 'px) saturate(' + sat.toFixed(2) + ') hue-rotate(' + hue + 'deg)'; f.blur.style.backdropFilter = bf; f.blur.style.webkitBackdropFilter = bf; f.blur.style.background = 'none'; }
+      else { f.blur.style.backdropFilter = 'none'; f.blur.style.webkitBackdropFilter = 'none'; f.blur.style.background = 'rgba(255,255,255,' + (0.05 + 0.06 * L / C.levelMax).toFixed(3) + ')'; }
+      f.blur.style.opacity = 1;
+    } else { f.blur.style.opacity = 0; f.blur.style.backdropFilter = 'none'; f.blur.style.webkitBackdropFilter = 'none'; }
+    DM.shake = s.shake; DM.hb = s.hb; DM.cur = s;
+    if (DM.pan && DM.pan.style.display !== 'none') DM.pan.firstChild.textContent = 'عدد مرات الموت: ' + n;
+  };
+  DM.state = function () { var s = DM.cur || {}; return { deaths: DM.count, level: DM.level(), blood: s.blood, blur: s.blur, vig: s.vig, hue: s.hue, sat: s.sat, shake: s.shake, hb: s.hb, backdrop: DM_CFG.backdrop, dead: DM.dead, store: DM.store }; };
+  DM.setCount = function (n) { DM.count = Math.max(0, n | 0); DM.write(DM.count); DM.apply(); };
+  DM.reset = function () { DM.count = 0; DM.clear(); DM.apply(); };
+  // heartbeat (own audio context SD.ac, never the wrapped one)
+  var dmHbT = 0;
+  setInterval(function () {
+    if (!DM.hb || DM.dead || !SD.ac || SD.ac.state !== 'running' || !SD.mg) return;
+    var C = DM_CFG, L = DM.level(), bpm = C.hbBpm0 + C.hbBpmStep * L, now = SD.ac.currentTime;
+    if (now < dmHbT) return; dmHbT = now + 60 / bpm;
+    [0, 0.22].forEach(function (o, i) { var os = SD.ac.createOscillator(), g = SD.ac.createGain(), t = now + o, v = (C.hbGain0 + C.hbGainStep * L) * (i ? 0.7 : 1); os.type = 'sine'; os.frequency.setValueAtTime(58, t); os.frequency.exponentialRampToValueAtTime(34, t + 0.12); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18); os.connect(g); g.connect(SD.mg); os.start(t); os.stop(t + 0.2); });
+  }, 120);
+  DM.kill = function (reason) {
+    if (DM.dead || !window.__ready) return false;
+    var C = DM_CFG, bed = defs[1].B; DM.dead = true; DM.lastReason = reason || ''; DM.fy = st.yaw; DM.fp = st.pitch; DM.t0 = performance.now();
+    DM.count++; DM.write(DM.count);
+    try { sdResume(); } catch (e) { }
+    SD.end(); SD.ev = null; SD.nA = SD.now + 600; SD.nB = SD.now + 600;
+    var fw = new THREE.Vector3(-Math.sin(st.yaw), 0, -Math.cos(st.yaw)), cp = cam.position;
+    SL.position.set(cp.x + fw.x * C.showDist, 0, cp.z + fw.z * C.showDist); SL.rotation.y = Math.atan2(-(SL.position.x - cp.x), -(SL.position.z - cp.z)) + Math.PI; SL.visible = true;
+    SD.flash = C.showT; SD.hit();
+    setTimeout(function () { DM.fx.black.style.transition = 'opacity ' + C.fadeIn + 's linear'; DM.fx.black.style.opacity = 1; }, C.showT * 1000);
+    setTimeout(function () {
+      // player is fully black: reset
+      if (bed.hiding) { try { bed.use(); } catch (e) { } }
+      wasHide = false; st.x = C.respawn.x; st.z = C.respawn.z; st.yaw = C.respawn.yaw; st.pitch = 0; DM.fy = st.yaw; DM.fp = 0;
+      torch.visible = true; SD.tOff = false; SL.visible = false; SD.end(); SD.ev = null; SD.flash = 0;
+      SD.nA = SD.now + C.delay; SD.nB = SD.now + C.delay + 10; SD.rt = SD.now;
+      if (SD.tension > C.tensionMin) SD.tension = Math.max(C.tensionMin, SD.tension - C.tensionDrop);
+      DM.apply();
+      DM.fx.black.style.transition = 'opacity ' + C.fadeOut + 's linear'; DM.fx.black.style.opacity = 0;
+    }, (C.showT + C.fadeIn + C.hold) * 1000);
+    setTimeout(function () { DM.dead = false; DM.tDone = performance.now(); }, (C.showT + C.fadeIn + C.hold + C.fadeOut) * 1000);
+    return true;
+  };
+  DM.count = DM.read(); DM.apply();
 
   // ---------- build label + QA self-check (?qa=1) ----------
   (function () {
@@ -376,6 +472,7 @@ canvas{display:block;width:100%;height:100%}
       QAR.stuck.forEach(function (r) { L.push('stuck ' + r.key + ': ' + (r.inWall ? 'YES (spawn near wall)' : 'no') + ' room=' + r.roomAtSpawn); });
       L.push('slender: ' + (window.__slender ? window.__slender.join(',') : 'NOT LOADED') + ' head=' + (SD.head ? SD.head.name : 'none'));
       L.push('audio: ' + ACs.map(function (c) { return c.state; }).join(',') + ' | sd=' + (SD.ac ? SD.ac.state : 'none'));
+      var dmS = DM.state(); L.push('deaths=' + dmS.deaths + ' level=' + dmS.level + ' blood=' + dmS.blood + ' blur=' + dmS.blur + 'px vig=' + dmS.vig + ' hue=' + dmS.hue + ' sat=' + dmS.sat + ' shake=' + dmS.shake + ' heartbeat=' + dmS.hb + ' backdrop=' + dmS.backdrop + ' dead=' + dmS.dead + ' store=' + dmS.store); QAR.dm = dmS;
       var t = L.join('\n'); pn.textContent = t; QAR.text = t; QAR.fps = window.__fps; try { console.log('QA\n' + t); } catch (e) { }
     }
     var w = setInterval(function () { if (window.__ready) { clearInterval(w); run(); show(); setInterval(show, 1000); } }, 300);
@@ -386,17 +483,19 @@ canvas{display:block;width:100%;height:100%}
     requestAnimationFrame(frame); var dt = last ? Math.min(0.05, (t - last) / 1000) : 0.016; last = t;
     var bed = defs[1].B, hide = bed.hiding && cur === 1;
     var f = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0) - joy.y, s = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0) + joy.x;
-    if (hide) f = s = 0; var sp = 1.7 * dt, dx = (-Math.sin(st.yaw) * f + Math.cos(st.yaw) * s) * sp, dz = (-Math.cos(st.yaw) * f - Math.sin(st.yaw) * s) * sp;
+    if (hide || DM.dead) f = s = 0; var sp = 1.7 * dt, dx = (-Math.sin(st.yaw) * f + Math.cos(st.yaw) * s) * sp, dz = (-Math.cos(st.yaw) * f - Math.sin(st.yaw) * s) * sp;
     if (free(st.x + dx, st.z)) st.x += dx; if (free(st.x, st.z + dz)) st.z += dz;
     var k = roomAt(st.x, st.z); if (k !== cur) setActive(k);
     if (hide) { var hs = bed.hideSpot, d1 = defs[1]; if (!wasHide) { wasHide = true; st.yaw = hs.yaw; st.pitch = 0.05; } st.yaw = Math.max(hs.yaw - 0.9, Math.min(hs.yaw + 0.9, st.yaw)); st.pitch = Math.max(-0.35, Math.min(0.35, st.pitch)); cam.position.set(d1.cx + hs.x, hs.y, d1.cz + hs.z); }
     else { if (wasHide) { wasHide = false; var d1b = defs[1]; st.x = d1b.cx + bed.exitSpot.x; st.z = d1b.cz + bed.exitSpot.z; } cam.position.set(st.x, st.eye, st.z); }
-    cam.rotation.set(st.pitch, st.yaw, 0); slTick(dt, hide);
+    if (DM.dead) { st.yaw = DM.fy; st.pitch = DM.fp; }
+    cam.rotation.set(st.pitch + (DM.shake ? (Math.random() - 0.5) * 2 * DM.shake : 0), st.yaw + (DM.shake ? (Math.random() - 0.5) * 2 * DM.shake : 0), 0); slTick(dt, hide);
     if (cur >= 0) { var d = defs[cur]; d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); if (d.mainLamp) d.spot.intensity = d.sp * LF * (d.mainLamp.intensity / d.lampBase); } else if (cur === -1) { defs.forEach(function (d) { if (Math.abs(d.wdx - st.x) < 5) { d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); } }); } // hinge doors keep swinging when opened from the corridor
     myDoors.forEach(function (m) { var tg = m.it.open ? DOOR_ANGLE : 0; if (m.a < tg) m.a = Math.min(tg, m.a + DOOR_SPEED * dt); else if (m.a > tg) m.a = Math.max(tg, m.a - DOOR_SPEED * dt); m.piv.rotation.y = m.sign * m.a; });
     var h = hide ? null : pickAt(innerWidth / 2, innerHeight / 2); labEl.textContent = hide ? 'اضغط للخروج' : (h ? (h.it.noPrefix ? h.it.label : (h.it.open ? 'إغلاق: ' : 'فتح: ') + h.it.label) : '');
     R.render(scene, cam); frames++; tF += dt; if (tF > 1) { window.__fps = frames / tF; frames = 0; tF = 0; }
   }
+  window.DM = DM; window.DM_CFG = DM_CFG;
   window.H = { doors: myDoors, SL: SL, SD: SD, sim: function (dt, n) { for (var i = 0; i < n; i++) sdTick(dt, false); }, slForce: function () { SD.trigger('watch'); }, defs: defs, st: st, R: R, scene: scene, setActive: setActive, goto: function (i) { var d = defs[i]; st.x = d.cx + d.cs * d.B.spawn.x; st.z = d.cz + d.cs * d.B.spawn.z; st.yaw = d.B.spawn.yaw + (d.rot ? Math.PI : 0); for (var k = 0; k < 4; k++) { if (free(st.x, st.z) && free(st.x + 0.4, st.z) && free(st.x - 0.4, st.z) && free(st.x, st.z + 0.4) && free(st.x, st.z - 0.4)) break; st.x += (d.cx - st.x) * 0.25; st.z += (d.cz - st.z) * 0.25; } } };
   requestAnimationFrame(frame);
   var chk = setInterval(function () {
