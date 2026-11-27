@@ -30,6 +30,7 @@ canvas{display:block;width:100%;height:100%}
    2 corridor walls sit 0.05 m inside the corridor with polygonOffset, so his door-wall boxes/planes (same plane z=0 / z=2.6) do not z-fight or show through (dotted/checker patch, panel with brown top edge)
    3 door frames of his rooms (brown jamb boxes 4a382a and pale boxes near the door gap) are dimmed (colour x0.35, material cloned) so they are not bright white
    4 corridor floor/walls darker (floor 0x0e0b09, walls 0x1c1f23, lamps 6)
+  13 sofa blanket slab laid flat
   12 pinned to 15a220ba (checker floors 0.5 m, figures:false, bathroom lamps:1); corridor floor = same checker colours
   11 room meshes that cross the room wall into the corridor are clipped at the wall plane (living room wall rail stuck 0.75 m into the corridor = the floating bar)
   10 only Slenderman is a character: his dolls, dark figure planes (bath/kitchen) and the bedroom visitor are hidden
@@ -39,7 +40,7 @@ canvas{display:block;width:100%;height:100%}
    6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var BUILD = 'p2-012', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var BUILD = 'p2-013', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -79,6 +80,13 @@ canvas{display:block;width:100%;height:100%}
     R.localClippingEnabled = true; d.clipped = 0; var cpl = new THREE.Plane(new THREE.Vector3(0, 0, d.rot === 0 ? -1 : 1), d.rot === 0 ? 0 : -CW), cbx = new THREE.Box3();
     B.group.updateMatrixWorld(true);
     B.group.traverse(function (o) { if (!o.isMesh || o.isSkinnedMesh || !o.visible) return; cbx.setFromObject(o); if (d.rot === 0 ? cbx.max.z > 0.01 : cbx.min.z < CW - 0.01) { var ms = Array.isArray(o.material) ? o.material : [o.material], cl = ms.map(function (m) { var c = m.clone(); c.clippingPlanes = [cpl]; return c; }); o.material = Array.isArray(o.material) ? cl : cl[0]; d.clipped++; } });
+    // living room: the blanket thrown on the sofa is a 0.8x0.04x0.5 slab tilted on 3 axes (reads as a floating slab); lay it flat on the seat
+    d.flat = '';
+    B.group.updateMatrixWorld(true);
+    B.group.traverse(function (o) { if (!o.isMesh || o.geometry.type !== 'BoxGeometry') return; var p = o.geometry.parameters; if (Math.abs(p.width - 0.8) < 0.001 && Math.abs(p.height - 0.04) < 0.001 && Math.abs(p.depth - 0.5) < 0.001 && (Math.abs(o.rotation.x) > 0.05 || Math.abs(o.rotation.z) > 0.05)) {
+      var wp = o.getWorldPosition(new THREE.Vector3()), rc = new THREE.Raycaster(new THREE.Vector3(wp.x, 2, wp.z), new THREE.Vector3(0, -1, 0)); o.visible = false; var hs = rc.intersectObject(B.group, true).filter(function (h) { return h.object !== o && h.object.visible; }); o.visible = true;
+      var top = hs.length ? hs[0].point.y : wp.y - 0.02; o.rotation.set(0, o.rotation.y, 0); o.parent.updateMatrixWorld(true); var lp = o.parent.worldToLocal(new THREE.Vector3(wp.x, top + 0.02, wp.z)); o.position.copy(lp); d.flat = 'sofa blanket flat, seat top y=' + top.toFixed(2);
+    } });
     // lights: replace the shadow-casting lamp by one ceiling spotlight (single-lamp pool), drop the big fill lights
     d.keep = []; d.mainLamp = null;
     B.group.traverse(function (o) {
@@ -356,7 +364,7 @@ canvas{display:block;width:100%;height:100%}
     var pn = document.createElement('pre'); pn.style.cssText = 'position:fixed;left:4px;top:34px;z-index:9;margin:0;padding:4px;font:10px/1.3 monospace;color:#7f7;background:#000b;max-width:70vw;max-height:70vh;overflow:auto;pointer-events:none;direction:ltr;white-space:pre-wrap'; document.body.appendChild(pn);
     function texCount(g) { var s = {}; g.traverse(function (o) { if (o.isMesh && o.material) { [].concat(o.material).forEach(function (m) { if (m.map) s[m.map.uuid] = 1; }); } }); return Object.keys(s).length; }
     function run() {
-      QAR.rooms = defs.map(function (d) { var sx = d.cx + d.cs * d.B.spawn.x, sz = d.cz + d.cs * d.B.spawn.z; return { key: d.key, built: !!d.B.group, spawnFree: free(sx, sz), textures: texCount(d.B.group), tinted: d.tinted, myDoor: !!d.myDoor, hisDoorHidden: !!d.hisDoorHidden, removed: (d.removed || []).join('|'), chars: (d.chars || []).join(','), clipped: d.clipped }; });
+      QAR.rooms = defs.map(function (d) { var sx = d.cx + d.cs * d.B.spawn.x, sz = d.cz + d.cs * d.B.spawn.z; return { key: d.key, built: !!d.B.group, spawnFree: free(sx, sz), textures: texCount(d.B.group), tinted: d.tinted, myDoor: !!d.myDoor, hisDoorHidden: !!d.hisDoorHidden, removed: (d.removed || []).join('|'), chars: (d.chars || []).join(','), clipped: d.clipped, flat: d.flat }; });
       var sv = [st.x, st.z]; QAR.stuck = [];
       defs.forEach(function (d, i) { window.H.goto(i); var sx = st.x, sz = st.z; var ok = true; [[0, 0], [0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4]].forEach(function (o) { if (!free(sx + o[0], sz + o[1])) ok = false; }); QAR.stuck.push({ key: d.key, inWall: !ok, roomAtSpawn: roomAt(sx, sz) }); });
       st.x = sv[0]; st.z = sv[1];
