@@ -129,6 +129,27 @@ canvas{display:block;width:100%;height:100%}
   }
   function doUse(h) { var bed = defs[1].B; if (bed.hiding && cur === 1) { bed.use(); return; } if (!h) return; if (h.d.B.use) h.d.B.use(h.it); else if (h.d.B.toggle) h.d.B.toggle(h.it.name); }
   function interact() { doUse(pickAt(innerWidth / 2, innerHeight / 2)); }
+  // ---------- slender figure ----------
+  var SL = new THREE.Group(), sm = new THREE.MeshStandardMaterial({ color: 0x0b0b0e, roughness: 0.9 }), hm = new THREE.MeshStandardMaterial({ color: 0xd9d6cf, roughness: 0.8, emissive: 0x15140f });
+  function sp(g, m, x, y, z, sx, sy, sz) { var o = new THREE.Mesh(g, m); o.position.set(x, y, z); if (sx) o.scale.set(sx, sy, sz); SL.add(o); return o; }
+  var cg = new THREE.CylinderGeometry(1, 1, 1, 8);
+  sp(new THREE.SphereGeometry(0.11, 10, 8), hm, 0, 2.28, 0, 0.85, 1.25, 0.85);
+  sp(cg, sm, 0, 1.55, 0, 0.17, 1.0, 0.1); sp(cg, sm, 0.2, 1.4, 0, 0.045, 1.2, 0.045).rotation.z = 0.04; sp(cg, sm, -0.2, 1.4, 0, 0.045, 1.2, 0.045).rotation.z = -0.04;
+  sp(cg, sm, 0.07, 0.55, 0, 0.06, 1.1, 0.06); sp(cg, sm, -0.07, 0.55, 0, 0.06, 1.1, 0.06);
+  var tie = sp(cg, new THREE.MeshStandardMaterial({ color: 0x5a0a0a }), 0, 1.75, 0.075, 0.025, 0.5, 0.02);
+  SL.visible = false; scene.add(SL);
+  var slT = 6, slSeen = 0, slOn = false;
+  function slTick(dt) {
+    slT -= dt;
+    if (!slOn) { if (slT <= 0) { for (var i = 0; i < 12; i++) { var a = st.yaw + (Math.random() < 0.5 ? -1 : 1) * (0.7 + Math.random() * 0.8), r = 3 + Math.random() * 3, x = st.x - Math.sin(a) * r, z = st.z - Math.cos(a) * r; if (free(x, z) && free(x + 0.2, z) && free(x, z + 0.2)) { SL.position.set(x, 0, z); slOn = true; slSeen = 0; SL.visible = true; break; } } slT = 2; } }
+    else {
+      var ex = SL.position.x - st.x, ez = SL.position.z - st.z, dist = Math.hypot(ex, ez); SL.rotation.y = Math.atan2(-ex, -ez) + Math.PI;
+      var fx = -Math.sin(st.yaw), fz = -Math.cos(st.yaw), dot = (fx * ex + fz * ez) / dist;
+      if (dot > 0.8) { slSeen += dt; if (slSeen > 0.55) { SL.visible = false; slOn = false; slT = 7 + Math.random() * 8; } } else { slSeen = Math.max(0, slSeen - dt); if (dist > 2.2) { SL.position.x -= ex / dist * 0.25 * dt; SL.position.z -= ez / dist * 0.25 * dt; } }
+      SL.visible = slOn && (Math.random() > 0.015 || dist > 3);
+      if (dist < 1.2) { slOn = false; SL.visible = false; slT = 12; }
+    }
+  }
   // ---------- loop ----------
   var last = null, wasHide = false, labEl = document.getElementById('lab'), hudEl = document.getElementById('hud'), frames = 0, tF = 0;
   function frame(t) {
@@ -140,12 +161,12 @@ canvas{display:block;width:100%;height:100%}
     var k = roomAt(st.x, st.z); if (k !== cur) setActive(k);
     if (hide) { var hs = bed.hideSpot, d1 = defs[1]; if (!wasHide) { wasHide = true; st.yaw = hs.yaw; st.pitch = 0.05; } st.yaw = Math.max(hs.yaw - 0.9, Math.min(hs.yaw + 0.9, st.yaw)); st.pitch = Math.max(-0.35, Math.min(0.35, st.pitch)); cam.position.set(d1.cx + hs.x, hs.y, d1.cz + hs.z); }
     else { if (wasHide) { wasHide = false; var d1b = defs[1]; st.x = d1b.cx + bed.exitSpot.x; st.z = d1b.cz + bed.exitSpot.z; } cam.position.set(st.x, st.eye, st.z); }
-    cam.rotation.set(st.pitch, st.yaw, 0);
+    cam.rotation.set(st.pitch, st.yaw, 0); if (window.__ready) slTick(dt);
     if (cur >= 0) { var d = defs[cur]; d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); if (d.mainLamp) d.spot.intensity = d.sp * (d.mainLamp.intensity / d.lampBase); }
     var h = hide ? null : pickAt(innerWidth / 2, innerHeight / 2); labEl.textContent = hide ? 'اضغط للخروج' : (h ? (h.it.noPrefix ? h.it.label : (h.it.open ? 'إغلاق: ' : 'فتح: ') + h.it.label) : '');
     R.render(scene, cam); frames++; tF += dt; if (tF > 1) { window.__fps = frames / tF; frames = 0; tF = 0; }
   }
-  window.H = { defs: defs, st: st, R: R, scene: scene, setActive: setActive, goto: function (i) { var d = defs[i]; st.x = d.cx + d.cs * d.B.spawn.x; st.z = d.cz + d.cs * d.B.spawn.z; st.yaw = d.B.spawn.yaw + (d.rot ? Math.PI : 0); } };
+  window.H = { SL: SL, slForce: function () { slT = 0; }, defs: defs, st: st, R: R, scene: scene, setActive: setActive, goto: function (i) { var d = defs[i]; st.x = d.cx + d.cs * d.B.spawn.x; st.z = d.cz + d.cs * d.B.spawn.z; st.yaw = d.B.spawn.yaw + (d.rot ? Math.PI : 0); } };
   requestAnimationFrame(frame);
   var chk = setInterval(function () {
     var done = 0, total = 0; progs.forEach(function (p) { done += p.done; total += p.total; }); document.getElementById('lb').style.width = (100 * done / Math.max(1, total)) + '%';
