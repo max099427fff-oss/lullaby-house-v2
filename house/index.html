@@ -30,10 +30,11 @@ canvas{display:block;width:100%;height:100%}
    2 corridor walls sit 0.05 m inside the corridor with polygonOffset, so his door-wall boxes/planes (same plane z=0 / z=2.6) do not z-fight or show through (dotted/checker patch, panel with brown top edge)
    3 door frames of his rooms (brown jamb boxes 4a382a and pale boxes near the door gap) are dimmed (colour x0.35, material cloned) so they are not bright white
    4 corridor floor/walls darker (floor 0x0e0b09, walls 0x1c1f23, lamps 6)
+   7 door gap in my corridor wall is dw+0.012 so the wall edge meets the door frame inner face exactly (no 2 cm jamb strip sticking out); Slenderman appearance = SD.pop (sting + flash + screen shake)
    6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var BUILD = 'p2-006', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var BUILD = 'p2-007', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -83,7 +84,7 @@ canvas{display:block;width:100%;height:100%}
     if (CL > x) pl(CL - x, CH, mW, (x + CL) / 2, CH / 2, z, 0, ry);
   }
   var gN = [], gS = [];
-  defs.forEach(function (d) { (d.rot === 0 ? gN : gS).push({ x: d.wdx, w: d.dw + 0.04 }); });
+  defs.forEach(function (d) { (d.rot === 0 ? gN : gS).push({ x: d.wdx, w: d.dw + 0.012 }); });
   wallLine(0.05, 0, gN); wallLine(CW - 0.05, Math.PI, gS);
   // baseboards in the corridor
   var mT = new THREE.MeshStandardMaterial({ color: 0x120e0b, roughness: 0.8 });
@@ -204,6 +205,7 @@ canvas{display:block;width:100%;height:100%}
     s.buffer = SD.nb; f.type = 'highpass'; f.frequency.value = 1800; gn.gain.setValueAtTime(0.35, t); gn.gain.exponentialRampToValueAtTime(0.001, t + 0.25); s.connect(f); f.connect(gn); gn.connect(SD.mg); s.start(t); s.stop(t + 0.3);
     o.type = 'sine'; o.frequency.setValueAtTime(70, t); o.frequency.exponentialRampToValueAtTime(35, t + 0.25); og.gain.setValueAtTime(0.5, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.3); o.connect(og); og.connect(SD.mg); o.start(t); o.stop(t + 0.35);
   };
+  SD.pop = function () { SD.flash = 0.18; SD.hit(); var cv = document.querySelector('canvas'); if (cv) { var k = 0, iv = setInterval(function () { k++; cv.style.transform = k > 7 ? '' : 'translate(' + ((Math.random() - 0.5) * 18) + 'px,' + ((Math.random() - 0.5) * 18) + 'px) scale(1.04)'; if (k > 7) clearInterval(iv); }, 35); } };
   // ---- placement helpers
   function sdOk(x, z) { return roomAt(x, z) === cur && free(x, z) && free(x + 0.2, z) && free(x, z + 0.2); }
   function sdPlace(sx, sz) { SL.position.set(sx, 0, sz); SL.visible = true; SD.sx = sx; SD.sz = sz; }
@@ -223,7 +225,7 @@ canvas{display:block;width:100%;height:100%}
   // ---- events
   SD.start = function (name) {
     var ok = false;
-    SD.ph = 0; SD.t = 0; SD.look = 0; SD.away = 0; SD.adv = 0;
+    SD.popped = false; SD.ph = 0; SD.t = 0; SD.look = 0; SD.away = 0; SD.adv = 0;
     if (name === 'watch') { ok = sdFar(6, 11); if (ok) { SD.kind = Math.random() < 0.5 ? 'idle' : 'sway'; SD.play(SD.kind); } }
     else if (name === 'torch') { if (!torch.visible) return false; ok = sdFar(6, 8); if (ok) { SD.play('sway'); SL.visible = false; torch.visible = false; SD.tOff = true; SD.t = sdR(0.3, 0.6); SD.dist0 = SD.dist || 6; } }
     else if (name === 'periph') {
@@ -257,18 +259,19 @@ canvas{display:block;width:100%;height:100%}
     if (SD.ev) {
       SD.t -= 0;
       if (SD.ev === 'watch') {
-        dot = sdDot(); sdFace(); SD.ph += dt;
+        dot = sdDot(); sdFace(); SD.ph += dt; if (!SD.popped && dot > 0.6) { SD.popped = true; SD.pop(); }
         if (dot > 0.85) { SD.look += dt; SD.away = 0; } else { SD.look = Math.max(0, SD.look - dt); if (dot > 0.6) SD.away = 0; else if (SD.away >= 0) { SD.away += dt; if (SD.away >= 2) { sdAdvance(); SD.away = -1; } } }
         if (SD.ev && (SD.look > 1.5 || SD.dist < 3 || SD.ph > 40)) SD.end();
       } else if (SD.ev === 'periph') {
-        dot = sdDot(); sdFace(); SD.t -= dt; if (SD.t <= 0 || dot > 0.85) SD.end();
+        dot = sdDot(); sdFace(); SD.t -= dt; if (!SD.popped && dot > 0.6) { SD.popped = true; SD.pop(); } if (SD.t <= 0 || dot > 0.85) SD.end();
       } else if (SD.ev === 'torch') {
-        if (SD.ph === 0) { SD.t -= dt; if (SD.t <= 0) { SD.ph = 1; torch.visible = true; SD.tOff = false; sdDot(); var nd = Math.max(2.6, SD.dist - 2), x = st.x + SD.dx * nd, z = st.z + SD.dz * nd; if (sdOk(x, z)) SL.position.set(x, 0, z); SL.visible = true; sdFace(); SD.t = 2.5; SD.hit(); } }
+        if (SD.ph === 0) { SD.t -= dt; if (SD.t <= 0) { SD.ph = 1; torch.visible = true; SD.tOff = false; sdDot(); var nd = Math.max(2.6, SD.dist - 2), x = st.x + SD.dx * nd, z = st.z + SD.dz * nd; if (sdOk(x, z)) SL.position.set(x, 0, z); SL.visible = true; sdFace(); SD.t = 2.5; SD.pop(); } }
         else { dot = sdDot(); sdFace(); SD.t -= dt; if (dot > 0.85) SD.look += dt; if (SD.t <= 0 || SD.look > 0.8) SD.end(); }
       } else if (SD.ev === 'behind') {
         if (SD.ph === 0) { SD.t -= dt; if (SD.t <= 0) {
           var okb = false, ang, rr, bx, bz, ai, ri;
           for (ai = 0; ai < 5 && !okb; ai++) for (ri = 0; ri < 3 && !okb; ri++) { ang = st.yaw + (ai === 0 ? 0 : (ai % 2 ? 1 : -1) * Math.ceil(ai / 2) * 0.45); rr = 2 + ri * 0.5 + Math.random() * 0.4; bx = st.x + Math.sin(ang) * rr; bz = st.z + Math.cos(ang) * rr; if (sdOk(bx, bz)) { sdPlace(bx, bz); okb = true; } }
+          if (okb) SD.pop();
           if (!okb) { SD.ev = null; SD.nB = SD.now + 10; } else { SD.play(Math.random() < 0.5 ? 'sway' : 'idle'); sdFace(); SD.ph = 1; SD.t = 0; SD.look = 0; }
         } }
         else if (SD.ph === 1) { dot = sdDot(); sdFace(); SD.t += dt; if (dot > 0.6 || SD.t > 4) { SD.ph = 2; SD.t = 2; } }
