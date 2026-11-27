@@ -1,0 +1,635 @@
+{
+ "errors": [],
+ "warns": [
+  "[.WebGL-0x1acc0121c000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+  "[.WebGL-0x1acc0121c000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+  "[.WebGL-0x1acc0121c000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels",
+  "[.WebGL-0x1acc0121c000]GL Driver Message (OpenGL, Performance, GL_CLOSE_PATH_NV, High): GPU stall due to ReadPixels (this message will no longer repeat)"
+ ],
+ "failed": [],
+ "steps": [
+  {
+   "f": "01-corridor-start-east.png",
+   "fps": 20.669291338582667
+  },
+  {
+   "f": "02-corridor-mid-east.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "03-corridor-end-east.png",
+   "fps": 20.329138431752032
+  },
+  {
+   "f": "04-corridor-start-west.png",
+   "fps": 20.956372642408013
+  },
+  {
+   "f": "05-corridor-mid-west.png",
+   "fps": 20.66319000295167
+  },
+  {
+   "f": "06-corridor-end-west.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "07-room0-door.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "08-room0-inside-a.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "09-room0-inside-b.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "10-room1-door.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "11-room1-inside-a.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "12-room1-inside-b.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "13-room2-door.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "14-room2-inside-a.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "15-room2-inside-b.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "16-room3-door.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "17-room3-inside-a.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "18-room3-inside-b.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "19-bed-hide.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "20-event-watch.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "21-event-behind.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "22-event-torch.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "23-event-periph.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "24-death-0.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "25-death-1.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "26-death-2.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "27-death-3.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "28-death-4.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "29-death-5.png",
+   "fps": 19.999999999999996
+  },
+  {
+   "f": "30-death-6.png",
+   "fps": 19.999999999999996
+  }
+ ],
+ "fps": {
+  "corridor-start-east": 20.669291338582667,
+  "corridor-mid-east": 19.999999999999996,
+  "corridor-end-east": 20.329138431752032,
+  "corridor-start-west": 20.956372642408013,
+  "corridor-mid-west": 20.66319000295167,
+  "corridor-end-west": 19.999999999999996,
+  "room0-door": 19.999999999999996,
+  "room0-inside-a": 19.999999999999996,
+  "room0-inside-b": 19.999999999999996,
+  "room1-door": 19.999999999999996,
+  "room1-inside-a": 19.999999999999996,
+  "room1-inside-b": 19.999999999999996,
+  "room2-door": 19.999999999999996,
+  "room2-inside-a": 19.999999999999996,
+  "room2-inside-b": 19.999999999999996,
+  "room3-door": 19.999999999999996,
+  "room3-inside-a": 19.999999999999996,
+  "room3-inside-b": 19.999999999999996,
+  "bed-hide": 19.999999999999996,
+  "event-watch": 19.999999999999996,
+  "event-behind": 19.999999999999996,
+  "event-torch": 19.999999999999996,
+  "event-periph": 19.999999999999996,
+  "death-0": 19.999999999999996,
+  "death-1": 19.999999999999996,
+  "death-2": 19.999999999999996,
+  "death-3": 19.999999999999996,
+  "death-4": 19.999999999999996,
+  "death-5": 19.999999999999996,
+  "death-6": 19.999999999999996
+ },
+ "dm": [
+  {
+   "name": "state-0",
+   "state": {
+    "deaths": 0,
+    "level": 0,
+    "blood": 0,
+    "blur": 0,
+    "vig": 0,
+    "hue": 0,
+    "sat": 1,
+    "shake": 0,
+    "hb": 0,
+    "backdrop": true,
+    "dead": false,
+    "store": "nosave"
+   },
+   "fps": 19.999999999999996
+  },
+  {
+   "name": "deaths=0 level",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=0 blood",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=0 blur",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=0 readable (vig<=0.9, sat>=0.8)",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "state-1",
+   "state": {
+    "deaths": 1,
+    "level": 0,
+    "blood": 0,
+    "blur": 0,
+    "vig": 0,
+    "hue": 0,
+    "sat": 1,
+    "shake": 0,
+    "hb": 0,
+    "backdrop": true,
+    "dead": false,
+    "store": "nosave"
+   },
+   "fps": 19.999999999999996
+  },
+  {
+   "name": "deaths=1 level",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=1 blood",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=1 blur",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=1 readable (vig<=0.9, sat>=0.8)",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "state-2",
+   "state": {
+    "deaths": 2,
+    "level": 0,
+    "blood": 0.85,
+    "blur": 0,
+    "vig": 0,
+    "hue": 0,
+    "sat": 1,
+    "shake": 0,
+    "hb": 0,
+    "backdrop": true,
+    "dead": false,
+    "store": "nosave"
+   },
+   "fps": 19.999999999999996
+  },
+  {
+   "name": "deaths=2 level",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=2 blood",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=2 blur",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=2 readable (vig<=0.9, sat>=0.8)",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "state-3",
+   "state": {
+    "deaths": 3,
+    "level": 0,
+    "blood": 0.85,
+    "blur": 0.6,
+    "vig": 0.6,
+    "hue": 0,
+    "sat": 1,
+    "shake": 0,
+    "hb": 0,
+    "backdrop": true,
+    "dead": false,
+    "store": "nosave"
+   },
+   "fps": 19.999999999999996
+  },
+  {
+   "name": "deaths=3 level",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=3 blood",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=3 blur",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=3 readable (vig<=0.9, sat>=0.8)",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "state-4",
+   "state": {
+    "deaths": 4,
+    "level": 1,
+    "blood": 0.85,
+    "blur": 0.88,
+    "vig": 0.64,
+    "hue": 2,
+    "sat": 0.95,
+    "shake": 0.0006,
+    "hb": 1,
+    "backdrop": true,
+    "dead": false,
+    "store": "nosave"
+   },
+   "fps": 19.999999999999996
+  },
+  {
+   "name": "deaths=4 level",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=4 blood",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=4 blur",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=4 readable (vig<=0.9, sat>=0.8)",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "state-5",
+   "state": {
+    "deaths": 5,
+    "level": 2,
+    "blood": 0.85,
+    "blur": 1.16,
+    "vig": 0.68,
+    "hue": 4,
+    "sat": 0.9,
+    "shake": 0.0012,
+    "hb": 1,
+    "backdrop": true,
+    "dead": false,
+    "store": "nosave"
+   },
+   "fps": 19.999999999999996
+  },
+  {
+   "name": "deaths=5 level",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=5 blood",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=5 blur",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=5 readable (vig<=0.9, sat>=0.8)",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "state-6",
+   "state": {
+    "deaths": 6,
+    "level": 3,
+    "blood": 0.85,
+    "blur": 1.44,
+    "vig": 0.72,
+    "hue": 6,
+    "sat": 0.85,
+    "shake": 0.0018,
+    "hb": 1,
+    "backdrop": true,
+    "dead": false,
+    "store": "nosave"
+   },
+   "fps": 19.999999999999996
+  },
+  {
+   "name": "deaths=6 level",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=6 blood",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=6 blur",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "deaths=6 readable (vig<=0.9, sat>=0.8)",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "kill corridor: sequence ran and ended",
+   "ok": true,
+   "extra": "2911 ms"
+  },
+  {
+   "name": "kill corridor: respawn at start",
+   "ok": true,
+   "extra": "{\"dead\":false,\"x\":1,\"z\":1.3,\"sl\":false,\"hiding\":false,\"count\":1,\"ev\":null}"
+  },
+  {
+   "name": "kill corridor: slenderman hidden, no event, not hiding",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "count 0 -> 1 after one kill",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "kill room0: sequence ran and ended",
+   "ok": true,
+   "extra": "2922 ms"
+  },
+  {
+   "name": "kill room0: respawn at start",
+   "ok": true,
+   "extra": "{\"dead\":false,\"x\":1,\"z\":1.3,\"sl\":false,\"hiding\":false,\"count\":2,\"ev\":null}"
+  },
+  {
+   "name": "kill room0: slenderman hidden, no event, not hiding",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "kill room1: sequence ran and ended",
+   "ok": true,
+   "extra": "2928 ms"
+  },
+  {
+   "name": "kill room1: respawn at start",
+   "ok": true,
+   "extra": "{\"dead\":false,\"x\":1,\"z\":1.3,\"sl\":false,\"hiding\":false,\"count\":3,\"ev\":null}"
+  },
+  {
+   "name": "kill room1: slenderman hidden, no event, not hiding",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "kill room2: sequence ran and ended",
+   "ok": true,
+   "extra": "2625 ms"
+  },
+  {
+   "name": "kill room2: respawn at start",
+   "ok": true,
+   "extra": "{\"dead\":false,\"x\":1,\"z\":1.3,\"sl\":false,\"hiding\":false,\"count\":4,\"ev\":null}"
+  },
+  {
+   "name": "kill room2: slenderman hidden, no event, not hiding",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "kill room3: sequence ran and ended",
+   "ok": true,
+   "extra": "2786 ms"
+  },
+  {
+   "name": "kill room3: respawn at start",
+   "ok": true,
+   "extra": "{\"dead\":false,\"x\":1,\"z\":1.3,\"sl\":false,\"hiding\":false,\"count\":5,\"ev\":null}"
+  },
+  {
+   "name": "kill room3: slenderman hidden, no event, not hiding",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "kill hiding: sequence ran and ended",
+   "ok": true,
+   "extra": "2867 ms"
+  },
+  {
+   "name": "kill hiding: respawn at start",
+   "ok": true,
+   "extra": "{\"dead\":false,\"x\":1,\"z\":1.3,\"sl\":false,\"hiding\":false,\"count\":6,\"ev\":null}"
+  },
+  {
+   "name": "kill hiding: slenderman hidden, no event, not hiding",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "two kills in a row count once",
+   "ok": true,
+   "extra": ""
+  },
+  {
+   "name": "qa-line",
+   "text": "deaths=1 level=0 blood=0 blur=0px vig=0 hue=0 sat=1 shake=0 heartbeat=0 backdrop=true dead=true store=nosave"
+  }
+ ],
+ "dmFail": [],
+ "qa": {
+  "build": "p2-023",
+  "errors": [],
+  "rooms": [
+   {
+    "key": "bath",
+    "built": true,
+    "spawnFree": true,
+    "textures": 38,
+    "tinted": 4,
+    "myDoor": true,
+    "hisDoorHidden": true,
+    "removed": "Box y0.00-2.05|Plane y0.08-0.98|Plane y1.70-2.10",
+    "chars": "",
+    "clipped": 5,
+    "flat": ""
+   },
+   {
+    "key": "bed",
+    "built": true,
+    "spawnFree": true,
+    "textures": 33,
+    "tinted": 4,
+    "myDoor": true,
+    "hisDoorHidden": true,
+    "removed": "Box y0.00-2.05",
+    "chars": "bedroom-visitor",
+    "clipped": 5,
+    "flat": ""
+   },
+   {
+    "key": "kit",
+    "built": true,
+    "spawnFree": true,
+    "textures": 34,
+    "tinted": 3,
+    "myDoor": true,
+    "hisDoorHidden": false,
+    "removed": "Plane y0.10-0.95",
+    "chars": "",
+    "clipped": 3,
+    "flat": ""
+   },
+   {
+    "key": "liv",
+    "built": true,
+    "spawnFree": true,
+    "textures": 33,
+    "tinted": 4,
+    "myDoor": true,
+    "hisDoorHidden": true,
+    "removed": "Box y0.97-1.03|Box y0.00-2.05|Plane y1.00-1.70",
+    "chars": "",
+    "clipped": 4,
+    "flat": "sofa blanket slab removed (was tilted 0.2/0.3/0.1 rad and overlapped the armrest)"
+   }
+  ],
+  "stuck": [
+   {
+    "key": "bath",
+    "inWall": false,
+    "roomAtSpawn": 0
+   },
+   {
+    "key": "bed",
+    "inWall": false,
+    "roomAtSpawn": 1
+   },
+   {
+    "key": "kit",
+    "inWall": false,
+    "roomAtSpawn": 2
+   },
+   {
+    "key": "liv",
+    "inWall": false,
+    "roomAtSpawn": 3
+   }
+  ],
+  "dm": {
+   "deaths": 1,
+   "level": 0,
+   "blood": 0,
+   "blur": 0,
+   "vig": 0,
+   "hue": 0,
+   "sat": 1,
+   "shake": 0,
+   "hb": 0,
+   "backdrop": true,
+   "dead": true,
+   "store": "nosave"
+  },
+  "text": "build p2-023 fps 20.0\nerrors: none\nbath: built=true spawnFree=true tex=38 tinted=4\nbed: built=true spawnFree=true tex=33 tinted=4\nkit: built=true spawnFree=true tex=34 tinted=3\nliv: built=true spawnFree=true tex=33 tinted=4\nstuck bath: no room=0\nstuck bed: no room=1\nstuck kit: no room=2\nstuck liv: no room=3\nslender: sway,idle,walk,creep_walk,run head=mixamorigHead_06\naudio:  | sd=running\ndeaths=1 level=0 blood=0 blur=0px vig=0 hue=0 sat=1 shake=0 heartbeat=0 backdrop=true dead=true store=nosave",
+  "fps": 19.999999999999996
+ },
+ "minFps": 19.999999999999996,
+ "verdict": "PASS"
+}
