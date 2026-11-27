@@ -19,10 +19,10 @@ canvas{display:block;width:100%;height:100%}
 <div id='stick'><div id='knob'></div></div><div class='b' id='bf'>🔦</div><div class='b' id='act'>فتح</div>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'></script>
 <script src='https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js'></script>
-<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/bathroom/bathroom.js'></script>
-<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/bedroom/bedroom.js'></script>
-<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/kitchen/kitchen.js'></script>
-<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/livingroom/livingroom.js'></script>
+<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@15a220ba92c071fee9875e5bb9c8534012d075f3/bathroom/bathroom.js'></script>
+<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@15a220ba92c071fee9875e5bb9c8534012d075f3/bedroom/bedroom.js'></script>
+<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@15a220ba92c071fee9875e5bb9c8534012d075f3/kitchen/kitchen.js'></script>
+<script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@15a220ba92c071fee9875e5bb9c8534012d075f3/livingroom/livingroom.js'></script>
 <script>
 (function () {
   /* QA_CHECKLIST (recheck before every delivery, open ?qa=1&debug=1)
@@ -30,6 +30,7 @@ canvas{display:block;width:100%;height:100%}
    2 corridor walls sit 0.05 m inside the corridor with polygonOffset, so his door-wall boxes/planes (same plane z=0 / z=2.6) do not z-fight or show through (dotted/checker patch, panel with brown top edge)
    3 door frames of his rooms (brown jamb boxes 4a382a and pale boxes near the door gap) are dimmed (colour x0.35, material cloned) so they are not bright white
    4 corridor floor/walls darker (floor 0x0e0b09, walls 0x1c1f23, lamps 6)
+  12 pinned to 15a220ba (checker floors 0.5 m, figures:false, bathroom lamps:1); corridor floor = same checker colours
   11 room meshes that cross the room wall into the corridor are clipped at the wall plane (living room wall rail stuck 0.75 m into the corridor = the floating bar)
   10 only Slenderman is a character: his dolls, dark figure planes (bath/kitchen) and the bedroom visitor are hidden
    9 UNIFIED DOORS: one hinged door (no handle) on all 4 doorways incl. the kitchen that had none; his door leaves hidden; his wainscot rail/panel pieces that crossed the doorway (horizontal slab) split around the opening
@@ -38,7 +39,7 @@ canvas{display:block;width:100%;height:100%}
    6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var BUILD = 'p2-011', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var BUILD = 'p2-012', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -58,7 +59,7 @@ canvas{display:block;width:100%;height:100%}
   ];
   var progs = [];
   defs.forEach(function (d) {
-    var B = window[d.mod].build(THREE, { quality: QL, renderer: R });
+    var B = window[d.mod].build(THREE, { quality: QL, renderer: R, figures: false, checkerSize: 0.5, lamps: d.mod === 'BathroomModule' ? 1 : undefined });
     d.B = B; progs.push(B.progress); B.group.position.set(d.cx, 0, d.cz); B.group.rotation.y = d.rot; scene.add(B.group);
     d.cs = Math.cos(d.rot) > 0 ? 1 : -1; d.W = B.size.w; d.D = B.size.d; d.H = B.size.h;
     d.doorX = B.exitDoor.x; // world door x = cx + cs*doorX
@@ -90,7 +91,7 @@ canvas{display:block;width:100%;height:100%}
     B.group.add(sp, sp.target); d.spot = sp; d.keep.forEach(function (l) { l._v = l.visible; });
   });
   // corridor
-  var cg = new THREE.Group(), mW = new THREE.MeshStandardMaterial({ color: 0x1c1f23, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), mF = new THREE.MeshStandardMaterial({ color: 0x0e0b09, roughness: 0.7, metalness: 0 }), mC = new THREE.MeshStandardMaterial({ color: 0x1d1e21, roughness: 0.95 });
+  var cg = new THREE.Group(), mW = new THREE.MeshStandardMaterial({ color: 0x1c1f23, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), mF = new THREE.MeshStandardMaterial({ map: (function () { var c = document.createElement('canvas'); c.width = c.height = 512; var g = c.getContext('2d'); g.fillStyle = '#aaa598'; g.fillRect(0, 0, 512, 512); g.fillStyle = '#07222b'; g.fillRect(0, 0, 256, 256); g.fillRect(256, 256, 256, 256); var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(12.8, 2.6); t.anisotropy = 4; return t; })(), roughness: 0.7, metalness: 0 }), mC = new THREE.MeshStandardMaterial({ color: 0x1d1e21, roughness: 0.95 });
   function pl(w, h, m, x, y, z, rx, ry) { var g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.position.set(x, y, z); g.rotation.set(rx || 0, ry || 0, 0); g.receiveShadow = true; cg.add(g); return g; }
   pl(CL, CW, mF, CL / 2, 0, CW / 2, -Math.PI / 2, 0); pl(CL, CW, mC, CL / 2, CH, CW / 2, Math.PI / 2, 0);
   pl(CW, CH, mW, 0.01, CH / 2, CW / 2, 0, Math.PI / 2); pl(CW, CH, mW, CL - 0.01, CH / 2, CW / 2, 0, -Math.PI / 2);
