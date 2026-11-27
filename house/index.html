@@ -30,13 +30,14 @@ canvas{display:block;width:100%;height:100%}
    2 corridor walls sit 0.05 m inside the corridor with polygonOffset, so his door-wall boxes/planes (same plane z=0 / z=2.6) do not z-fight or show through (dotted/checker patch, panel with brown top edge)
    3 door frames of his rooms (brown jamb boxes 4a382a and pale boxes near the door gap) are dimmed (colour x0.35, material cloned) so they are not bright white
    4 corridor floor/walls darker (floor 0x0e0b09, walls 0x1c1f23, lamps 6)
+  10 only Slenderman is a character: his dolls, dark figure planes (bath/kitchen) and the bedroom visitor are hidden
    9 UNIFIED DOORS: one hinged door (no handle) on all 4 doorways incl. the kitchen that had none; his door leaves hidden; his wainscot rail/panel pieces that crossed the doorway (horizontal slab) split around the opening
    8 room doors (his hinged doors) are animated also while the player stands in the corridor (before, update ran only for the current room, so a door opened from the corridor froze and then jumped)
    7 door gap in my corridor wall is dw+0.012 so the wall edge meets the door frame inner face exactly (no 2 cm jamb strip sticking out); Slenderman appearance = SD.pop (sting + flash + screen shake)
    6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var BUILD = 'p2-009', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var BUILD = 'p2-010', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -64,6 +65,14 @@ canvas{display:block;width:100%;height:100%}
     // QA fix 5: his door frame boxes are bright white under the corridor lamps; dim them (his module and commit stay untouched)
     B.group.updateMatrixWorld(true); d.tinted = 0;
     B.group.traverse(function (o) { if (!o.isMesh || Array.isArray(o.material) || o.geometry.type !== 'BoxGeometry') return; var wp = o.getWorldPosition(new THREE.Vector3()), wz = d.rot === 0 ? 0 : CW; if (Math.abs(wp.z - wz) < 0.2 && Math.abs(wp.x - d.wdx) < d.dw / 2 + 0.2 && wp.y > 0.3) { o.material = o.material.clone(); o.material.color.multiplyScalar(0.35); d.tinted++; } });
+    // ONLY Slenderman may be a character: neutralise his dolls, the dark figure planes, and the bedroom visitor (his module and repo stay untouched)
+    d.chars = [];
+    B.group.traverse(function (o) {
+      if (!o.isMesh) return; var gp = o.geometry.parameters || {};
+      if (o.geometry.type === 'PlaneGeometry' && gp.width === 0.62 && gp.height === 1.7) { o.material.visible = false; d.chars.push('figure-plane'); }
+      else if (o.geometry.type === 'SphereGeometry' && gp.radius === 0.06 && gp.widthSegments === 14 && o.parent && o.parent.visible) { o.parent.visible = false; d.chars.push('doll'); }
+    });
+    B.group.children.forEach(function (c) { if (c.isGroup) { var hasL = false; c.children.forEach(function (k) { if (k.isPointLight && k.color.getHex() === 0x8a9ac8) hasL = true; }); if (hasL) { c.traverse(function (k) { if (k.isMesh) k.material.visible = false; if (k.isPointLight) k.intensity = 0; }); d.chars.push('bedroom-visitor'); } } });
     // lights: replace the shadow-casting lamp by one ceiling spotlight (single-lamp pool), drop the big fill lights
     d.keep = []; d.mainLamp = null;
     B.group.traverse(function (o) {
@@ -341,7 +350,7 @@ canvas{display:block;width:100%;height:100%}
     var pn = document.createElement('pre'); pn.style.cssText = 'position:fixed;left:4px;top:34px;z-index:9;margin:0;padding:4px;font:10px/1.3 monospace;color:#7f7;background:#000b;max-width:70vw;max-height:70vh;overflow:auto;pointer-events:none;direction:ltr;white-space:pre-wrap'; document.body.appendChild(pn);
     function texCount(g) { var s = {}; g.traverse(function (o) { if (o.isMesh && o.material) { [].concat(o.material).forEach(function (m) { if (m.map) s[m.map.uuid] = 1; }); } }); return Object.keys(s).length; }
     function run() {
-      QAR.rooms = defs.map(function (d) { var sx = d.cx + d.cs * d.B.spawn.x, sz = d.cz + d.cs * d.B.spawn.z; return { key: d.key, built: !!d.B.group, spawnFree: free(sx, sz), textures: texCount(d.B.group), tinted: d.tinted, myDoor: !!d.myDoor, hisDoorHidden: !!d.hisDoorHidden, removed: (d.removed || []).join('|') }; });
+      QAR.rooms = defs.map(function (d) { var sx = d.cx + d.cs * d.B.spawn.x, sz = d.cz + d.cs * d.B.spawn.z; return { key: d.key, built: !!d.B.group, spawnFree: free(sx, sz), textures: texCount(d.B.group), tinted: d.tinted, myDoor: !!d.myDoor, hisDoorHidden: !!d.hisDoorHidden, removed: (d.removed || []).join('|'), chars: (d.chars || []).join(',') }; });
       var sv = [st.x, st.z]; QAR.stuck = [];
       defs.forEach(function (d, i) { window.H.goto(i); var sx = st.x, sz = st.z; var ok = true; [[0, 0], [0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4]].forEach(function (o) { if (!free(sx + o[0], sz + o[1])) ok = false; }); QAR.stuck.push({ key: d.key, inWall: !ok, roomAtSpawn: roomAt(sx, sz) }); });
       st.x = sv[0]; st.z = sv[1];
