@@ -41,7 +41,7 @@ canvas{display:block;width:100%;height:100%}
    6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var BUILD = 'p2-015', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var BUILD = 'p2-016', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -61,7 +61,7 @@ canvas{display:block;width:100%;height:100%}
   ];
   var progs = [];
   defs.forEach(function (d) {
-    var B = window[d.mod].build(THREE, { quality: QL, renderer: R, figures: false, wallClock: false, checkerSize: 0.5, lamps: d.mod === 'BathroomModule' ? 1 : undefined });
+    var B = window[d.mod].build(THREE, { quality: QL, renderer: R, figures: false, wallClock: false, checkerSize: 0.25, lamps: d.mod === 'BathroomModule' ? 1 : undefined });
     d.B = B; progs.push(B.progress); B.group.position.set(d.cx, 0, d.cz); B.group.rotation.y = d.rot; scene.add(B.group);
     d.cs = Math.cos(d.rot) > 0 ? 1 : -1; d.W = B.size.w; d.D = B.size.d; d.H = B.size.h;
     d.doorX = B.exitDoor.x; // world door x = cx + cs*doorX
@@ -100,7 +100,7 @@ canvas{display:block;width:100%;height:100%}
     B.group.add(sp, sp.target); d.spot = sp; d.keep.forEach(function (l) { l._v = l.visible; });
   });
   // corridor
-  var cg = new THREE.Group(), mW = new THREE.MeshStandardMaterial({ color: 0x1c1f23, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), mF = new THREE.MeshStandardMaterial({ map: (function () { var c = document.createElement('canvas'); c.width = c.height = 512; var g = c.getContext('2d'); g.fillStyle = '#aaa598'; g.fillRect(0, 0, 512, 512); g.fillStyle = '#07222b'; g.fillRect(0, 0, 256, 256); g.fillRect(256, 256, 256, 256); var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(12.8, 2.6); t.anisotropy = 4; return t; })(), roughness: 0.7, metalness: 0 }), mC = new THREE.MeshStandardMaterial({ color: 0x1d1e21, roughness: 0.95 });
+  var cg = new THREE.Group(), mW = new THREE.MeshStandardMaterial({ color: 0x1c1f23, roughness: 0.95, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }), mF = new THREE.MeshStandardMaterial({ map: (function () { var c = document.createElement('canvas'); c.width = c.height = 512; var g = c.getContext('2d'); g.fillStyle = '#aaa598'; g.fillRect(0, 0, 512, 512); g.fillStyle = '#07222b'; g.fillRect(0, 0, 256, 256); g.fillRect(256, 256, 256, 256); var t = new THREE.CanvasTexture(c); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(25.6, 5.2); t.anisotropy = 4; return t; })(), roughness: 0.7, metalness: 0 }), mC = new THREE.MeshStandardMaterial({ color: 0x1d1e21, roughness: 0.95 });
   function pl(w, h, m, x, y, z, rx, ry) { var g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); g.position.set(x, y, z); g.rotation.set(rx || 0, ry || 0, 0); g.receiveShadow = true; cg.add(g); return g; }
   pl(CL, CW, mF, CL / 2, 0, CW / 2, -Math.PI / 2, 0); pl(CL, CW, mC, CL / 2, CH, CW / 2, Math.PI / 2, 0);
   pl(CW, CH, mW, 0.01, CH / 2, CW / 2, 0, Math.PI / 2); pl(CW, CH, mW, CL - 0.01, CH / 2, CW / 2, 0, -Math.PI / 2);
