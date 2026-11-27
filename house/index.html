@@ -41,7 +41,7 @@ canvas{display:block;width:100%;height:100%}
    6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var BUILD = 'p2-018', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var TR = /[?&]trial=1/.test(location.search), LF = TR ? 0.32 : 0.4, FILL = TR ? 0.03 : 0.02, COR = TR ? 1.8 : 2.2, BUILD = TR ? 'p2-019-trial' : 'p2-018', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -92,11 +92,11 @@ canvas{display:block;width:100%;height:100%}
     d.keep = []; d.mainLamp = null;
     B.group.traverse(function (o) {
       if (!o.isLight) return;
-      if (o.isHemisphereLight) { o.intensity = 0.02; return; }
+      if (o.isHemisphereLight) { o.intensity = FILL; return; }
       if (o.isDirectionalLight || o.isSpotLight) { o.visible = false; return; }
       if (o.isPointLight) { if (o.castShadow && !d.mainLamp) { d.mainLamp = o; d.lampBase = o.intensity || 1; o.visible = false; o.castShadow = false; } else if (o.distance >= 6 || o.distance === 0) { o.visible = false; } else d.keep.push(o); }
     });
-    var sp = new THREE.SpotLight(d.col, d.sp * 0.4, 9, 0.95, 0.85, 2); sp.position.set(0, d.H - 0.2, 0.1); sp.target.position.set(0, 0, 0.1); sp.castShadow = true; sp.shadow.mapSize.set(HIGH ? 1024 : 512, HIGH ? 1024 : 512); sp.shadow.bias = -0.0008;
+    var sp = new THREE.SpotLight(d.col, d.sp * LF, 9, 0.95, 0.85, 2); sp.position.set(0, d.H - 0.2, 0.1); sp.target.position.set(0, 0, 0.1); sp.castShadow = true; sp.shadow.mapSize.set(HIGH ? 1024 : 512, HIGH ? 1024 : 512); sp.shadow.bias = -0.0008;
     B.group.add(sp, sp.target); d.spot = sp; d.keep.forEach(function (l) { l._v = l.visible; });
   });
   // corridor
@@ -140,9 +140,9 @@ canvas{display:block;width:100%;height:100%}
   // baseboards in the corridor
   var mT = new THREE.MeshStandardMaterial({ color: 0x120e0b, roughness: 0.8 });
   [0.02, CW - 0.02].forEach(function (z) { var b = new THREE.Mesh(new THREE.BoxGeometry(CL, 0.12, 0.03), mT); b.position.set(CL / 2, 0.06, z); cg.add(b); });
-  [3.2, 9.6].forEach(function (x) { var l = new THREE.SpotLight(0xffd9a8, 2.2, 8, 1.05, 0.9, 2); l.position.set(x, CH - 0.1, CW / 2); l.target.position.set(x, 0, CW / 2); cg.add(l, l.target); var tube = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.1), new THREE.MeshBasicMaterial({ color: 0x1c160f })); tube.position.set(x, CH - 0.02, CW / 2); tube.visible = false; cg.add(tube); });
+  [3.2, 9.6].forEach(function (x) { var l = new THREE.SpotLight(0xffd9a8, COR, 8, 1.05, 0.9, 2); l.position.set(x, CH - 0.1, CW / 2); l.target.position.set(x, 0, CW / 2); cg.add(l, l.target); var tube = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.1), new THREE.MeshBasicMaterial({ color: 0x1c160f })); tube.position.set(x, CH - 0.02, CW / 2); tube.visible = false; cg.add(tube); });
   scene.add(cg);
-  var torch = new THREE.SpotLight(0xfff0d6, 3.6, 14, 0.36, 0.7, 1.6); torch.castShadow = false; cam.add(torch, torch.target); torch.position.set(0.15, -0.1, 0); torch.target.position.set(0, 0, -6);
+  var torch = new THREE.SpotLight(0xfff0d6, TR ? 5.0 : 3.6, TR ? 16 : 14, TR ? 0.32 : 0.36, TR ? 0.6 : 0.7, 1.6); torch.castShadow = false; cam.add(torch, torch.target); torch.position.set(0.15, -0.1, 0); torch.target.position.set(0, 0, -6);
   // ---------- state ----------
   var st = { x: 1.0, z: 1.3, yaw: -Math.PI / 2, pitch: 0, eye: 1.6 }; window.P = st;
   var cur = -1, lastRoom = 0, audioOn = false;
@@ -392,7 +392,7 @@ canvas{display:block;width:100%;height:100%}
     if (hide) { var hs = bed.hideSpot, d1 = defs[1]; if (!wasHide) { wasHide = true; st.yaw = hs.yaw; st.pitch = 0.05; } st.yaw = Math.max(hs.yaw - 0.9, Math.min(hs.yaw + 0.9, st.yaw)); st.pitch = Math.max(-0.35, Math.min(0.35, st.pitch)); cam.position.set(d1.cx + hs.x, hs.y, d1.cz + hs.z); }
     else { if (wasHide) { wasHide = false; var d1b = defs[1]; st.x = d1b.cx + bed.exitSpot.x; st.z = d1b.cz + bed.exitSpot.z; } cam.position.set(st.x, st.eye, st.z); }
     cam.rotation.set(st.pitch, st.yaw, 0); slTick(dt, hide);
-    if (cur >= 0) { var d = defs[cur]; d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); if (d.mainLamp) d.spot.intensity = d.sp * 0.4 * (d.mainLamp.intensity / d.lampBase); } else if (cur === -1) { defs.forEach(function (d) { if (Math.abs(d.wdx - st.x) < 5) { d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); } }); } // hinge doors keep swinging when opened from the corridor
+    if (cur >= 0) { var d = defs[cur]; d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); if (d.mainLamp) d.spot.intensity = d.sp * LF * (d.mainLamp.intensity / d.lampBase); } else if (cur === -1) { defs.forEach(function (d) { if (Math.abs(d.wdx - st.x) < 5) { d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); } }); } // hinge doors keep swinging when opened from the corridor
     myDoors.forEach(function (m) { var tg = m.it.open ? DOOR_ANGLE : 0; if (m.a < tg) m.a = Math.min(tg, m.a + DOOR_SPEED * dt); else if (m.a > tg) m.a = Math.max(tg, m.a - DOOR_SPEED * dt); m.piv.rotation.y = m.sign * m.a; });
     var h = hide ? null : pickAt(innerWidth / 2, innerHeight / 2); labEl.textContent = hide ? 'اضغط للخروج' : (h ? (h.it.noPrefix ? h.it.label : (h.it.open ? 'إغلاق: ' : 'فتح: ') + h.it.label) : '');
     R.render(scene, cam); frames++; tF += dt; if (tF > 1) { window.__fps = frames / tF; frames = 0; tF = 0; }
