@@ -30,12 +30,13 @@ canvas{display:block;width:100%;height:100%}
    2 corridor walls sit 0.05 m inside the corridor with polygonOffset, so his door-wall boxes/planes (same plane z=0 / z=2.6) do not z-fight or show through (dotted/checker patch, panel with brown top edge)
    3 door frames of his rooms (brown jamb boxes 4a382a and pale boxes near the door gap) are dimmed (colour x0.35, material cloned) so they are not bright white
    4 corridor floor/walls darker (floor 0x0e0b09, walls 0x1c1f23, lamps 6)
+   9 UNIFIED DOORS: one hinged door (no handle) on all 4 doorways incl. the kitchen that had none; his door leaves hidden; his wainscot rail/panel pieces that crossed the doorway (horizontal slab) split around the opening
    8 room doors (his hinged doors) are animated also while the player stands in the corridor (before, update ran only for the current room, so a door opened from the corridor froze and then jumped)
    7 door gap in my corridor wall is dw+0.012 so the wall edge meets the door frame inner face exactly (no 2 cm jamb strip sticking out); Slenderman appearance = SD.pop (sting + flash + screen shake)
    6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var BUILD = 'p2-008', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var BUILD = 'p2-009', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -87,6 +88,31 @@ canvas{display:block;width:100%;height:100%}
   var gN = [], gS = [];
   defs.forEach(function (d) { (d.rot === 0 ? gN : gS).push({ x: d.wdx, w: d.dw + 0.012 }); });
   wallLine(0.05, 0, gN); wallLine(CW - 0.05, Math.PI, gS);
+
+  // ---- unified doors: ONE door design on every doorway (hinged leaf, no handle, opened with the open button). His own door leaves are hidden; any rail/panel piece that crosses a doorway is split so nothing sticks across the opening.
+  var myDoors = [], mDoor = new THREE.MeshStandardMaterial({ color: 0x3a281a, roughness: 0.85 }), dBx = new THREE.Box3(), DOOR_ANGLE = 1.7, DOOR_SPEED = 2.4;
+  defs.forEach(function (d) {
+    var north = d.rot === 0, wz = north ? 0 : CW, g0 = d.wdx - d.dw / 2, g1 = d.wdx + d.dw / 2, parts = [];
+    d.removed = [];
+    d.B.interactives.forEach(function (it) { if (it.name === 'door') { it.object.visible = false; it.object.traverse(function (o) { o.raycast = function () { }; }); d.hisDoorHidden = true; } });
+    d.B.group.updateMatrixWorld(true);
+    d.B.group.traverse(function (o) {
+      if (!o.isMesh || o.isSkinnedMesh || Array.isArray(o.material) || !o.visible) return; var gt = o.geometry.type; if (gt !== 'BoxGeometry' && gt !== 'PlaneGeometry') return;
+      dBx.setFromObject(o); if (dBx.max.x < g0 + 0.05 || dBx.min.x > g1 - 0.05 || dBx.max.z - dBx.min.z > 0.3 || Math.abs((dBx.min.z + dBx.max.z) / 2 - wz) > 0.25 || dBx.min.y > 2.0 || dBx.max.y < 0.05) return;
+      var a = o.worldToLocal(new THREE.Vector3(g0, dBx.min.y, wz)).x, b = o.worldToLocal(new THREE.Vector3(g1, dBx.min.y, wz)).x, l0 = Math.min(a, b), l1 = Math.max(a, b), w = o.geometry.parameters.width;
+      [[-w / 2, l0], [l1, w / 2]].forEach(function (r) {
+        if (r[1] - r[0] < 0.02) return; var g = o.geometry.clone(), pos = g.attributes.position, uv = g.attributes.uv;
+        for (var i = 0; i < pos.count; i++) { var x = Math.min(r[1], Math.max(r[0], pos.getX(i))); pos.setX(i, x); if (gt === 'PlaneGeometry' && uv) uv.setX(i, (x + w / 2) / w); }
+        pos.needsUpdate = true; if (uv) uv.needsUpdate = true; g.computeBoundingBox(); g.computeBoundingSphere();
+        var m = new THREE.Mesh(g, o.material); m.position.copy(o.position); m.quaternion.copy(o.quaternion); m.scale.copy(o.scale); m.castShadow = o.castShadow; m.receiveShadow = o.receiveShadow; parts.push([o.parent, m]);
+      });
+      o.visible = false; o.raycast = function () { }; d.removed.push(gt.replace('Geometry', '') + ' y' + dBx.min.y.toFixed(2) + '-' + dBx.max.y.toFixed(2));
+    });
+    parts.forEach(function (p) { p[0].add(p[1]); });
+    var lw = d.dw - 0.02, piv = new THREE.Group(); piv.position.set(g1 - 0.01, 0, wz); scene.add(piv);
+    var leaf = new THREE.Mesh(new THREE.BoxGeometry(lw, 2.04, 0.04), mDoor); leaf.position.set(-lw / 2, 1.02, 0); piv.add(leaf);
+    var md = { d: d, piv: piv, leaf: leaf, sign: north ? -1 : 1, a: 0, it: { name: 'door', label: 'الباب', open: false } }; leaf.userData.md = md; d.myDoor = md; myDoors.push(md);
+  });
   // baseboards in the corridor
   var mT = new THREE.MeshStandardMaterial({ color: 0x120e0b, roughness: 0.8 });
   [0.02, CW - 0.02].forEach(function (z) { var b = new THREE.Mesh(new THREE.BoxGeometry(CL, 0.12, 0.03), mT); b.position.set(CL / 2, 0.06, z); cg.add(b); });
@@ -139,10 +165,11 @@ canvas{display:block;width:100%;height:100%}
   document.getElementById('act').onclick = function () { interact(); };
   function pickAt(cx, cy) {
     v2.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1); ray.setFromCamera(v2, cam); var best = null, bd = 1e9;
+    var dh = ray.intersectObjects(myDoors.map(function (m) { return m.leaf; }), false); if (dh.length && dh[0].distance < 2.6) { var mm = dh[0].object.userData.md; return { it: mm.it, d: mm.d, mine: mm }; }
     defs.forEach(function (d) { if (!d.B.group.visible) return; var it = d.B.pick(ray, 2.6); if (it) { var o = it.object || it.mesh, p = new THREE.Vector3(); (o || d.B.group).getWorldPosition(p); var dist = Math.hypot(p.x - st.x, p.z - st.z); if (dist < bd) { bd = dist; best = { it: it, d: d }; } } });
     return best;
   }
-  function doUse(h) { var bed = defs[1].B; if (bed.hiding && cur === 1) { bed.use(); return; } if (!h) return; if (h.d.B.use) h.d.B.use(h.it); else if (h.d.B.toggle) h.d.B.toggle(h.it.name); }
+  function doUse(h) { var bed = defs[1].B; if (bed.hiding && cur === 1) { bed.use(); return; } if (!h) return; if (h.mine) { h.mine.it.open = !h.mine.it.open; return; } if (h.d.B.use) h.d.B.use(h.it); else if (h.d.B.toggle) h.d.B.toggle(h.it.name); }
   function interact() { doUse(pickAt(innerWidth / 2, innerHeight / 2)); }
   // ---------- slender figure ----------
   var SL = new THREE.Group(), sm = new THREE.MeshStandardMaterial({ color: 0x0b0b0e, roughness: 0.9 }), hm = new THREE.MeshStandardMaterial({ color: 0xd9d6cf, roughness: 0.8, emissive: 0x15140f });
@@ -314,7 +341,7 @@ canvas{display:block;width:100%;height:100%}
     var pn = document.createElement('pre'); pn.style.cssText = 'position:fixed;left:4px;top:34px;z-index:9;margin:0;padding:4px;font:10px/1.3 monospace;color:#7f7;background:#000b;max-width:70vw;max-height:70vh;overflow:auto;pointer-events:none;direction:ltr;white-space:pre-wrap'; document.body.appendChild(pn);
     function texCount(g) { var s = {}; g.traverse(function (o) { if (o.isMesh && o.material) { [].concat(o.material).forEach(function (m) { if (m.map) s[m.map.uuid] = 1; }); } }); return Object.keys(s).length; }
     function run() {
-      QAR.rooms = defs.map(function (d) { var sx = d.cx + d.cs * d.B.spawn.x, sz = d.cz + d.cs * d.B.spawn.z; return { key: d.key, built: !!d.B.group, spawnFree: free(sx, sz), textures: texCount(d.B.group), tinted: d.tinted }; });
+      QAR.rooms = defs.map(function (d) { var sx = d.cx + d.cs * d.B.spawn.x, sz = d.cz + d.cs * d.B.spawn.z; return { key: d.key, built: !!d.B.group, spawnFree: free(sx, sz), textures: texCount(d.B.group), tinted: d.tinted, myDoor: !!d.myDoor, hisDoorHidden: !!d.hisDoorHidden, removed: (d.removed || []).join('|') }; });
       var sv = [st.x, st.z]; QAR.stuck = [];
       defs.forEach(function (d, i) { window.H.goto(i); var sx = st.x, sz = st.z; var ok = true; [[0, 0], [0.4, 0], [-0.4, 0], [0, 0.4], [0, -0.4]].forEach(function (o) { if (!free(sx + o[0], sz + o[1])) ok = false; }); QAR.stuck.push({ key: d.key, inWall: !ok, roomAtSpawn: roomAt(sx, sz) }); });
       st.x = sv[0]; st.z = sv[1];
@@ -342,10 +369,11 @@ canvas{display:block;width:100%;height:100%}
     else { if (wasHide) { wasHide = false; var d1b = defs[1]; st.x = d1b.cx + bed.exitSpot.x; st.z = d1b.cz + bed.exitSpot.z; } cam.position.set(st.x, st.eye, st.z); }
     cam.rotation.set(st.pitch, st.yaw, 0); slTick(dt, hide);
     if (cur >= 0) { var d = defs[cur]; d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); if (d.mainLamp) d.spot.intensity = d.sp * (d.mainLamp.intensity / d.lampBase); } else if (cur === -1) { defs.forEach(function (d) { if (Math.abs(d.wdx - st.x) < 5) { d.B.setCamera(d.cs * (st.x - d.cx), d.cs * (st.z - d.cz)); d.B.update(dt); } }); } // hinge doors keep swinging when opened from the corridor
+    myDoors.forEach(function (m) { var tg = m.it.open ? DOOR_ANGLE : 0; if (m.a < tg) m.a = Math.min(tg, m.a + DOOR_SPEED * dt); else if (m.a > tg) m.a = Math.max(tg, m.a - DOOR_SPEED * dt); m.piv.rotation.y = m.sign * m.a; });
     var h = hide ? null : pickAt(innerWidth / 2, innerHeight / 2); labEl.textContent = hide ? 'اضغط للخروج' : (h ? (h.it.noPrefix ? h.it.label : (h.it.open ? 'إغلاق: ' : 'فتح: ') + h.it.label) : '');
     R.render(scene, cam); frames++; tF += dt; if (tF > 1) { window.__fps = frames / tF; frames = 0; tF = 0; }
   }
-  window.H = { SL: SL, SD: SD, sim: function (dt, n) { for (var i = 0; i < n; i++) sdTick(dt, false); }, slForce: function () { SD.trigger('watch'); }, defs: defs, st: st, R: R, scene: scene, setActive: setActive, goto: function (i) { var d = defs[i]; st.x = d.cx + d.cs * d.B.spawn.x; st.z = d.cz + d.cs * d.B.spawn.z; st.yaw = d.B.spawn.yaw + (d.rot ? Math.PI : 0); for (var k = 0; k < 4; k++) { if (free(st.x, st.z) && free(st.x + 0.4, st.z) && free(st.x - 0.4, st.z) && free(st.x, st.z + 0.4) && free(st.x, st.z - 0.4)) break; st.x += (d.cx - st.x) * 0.25; st.z += (d.cz - st.z) * 0.25; } } };
+  window.H = { doors: myDoors, SL: SL, SD: SD, sim: function (dt, n) { for (var i = 0; i < n; i++) sdTick(dt, false); }, slForce: function () { SD.trigger('watch'); }, defs: defs, st: st, R: R, scene: scene, setActive: setActive, goto: function (i) { var d = defs[i]; st.x = d.cx + d.cs * d.B.spawn.x; st.z = d.cz + d.cs * d.B.spawn.z; st.yaw = d.B.spawn.yaw + (d.rot ? Math.PI : 0); for (var k = 0; k < 4; k++) { if (free(st.x, st.z) && free(st.x + 0.4, st.z) && free(st.x - 0.4, st.z) && free(st.x, st.z + 0.4) && free(st.x, st.z - 0.4)) break; st.x += (d.cx - st.x) * 0.25; st.z += (d.cz - st.z) * 0.25; } } };
   requestAnimationFrame(frame);
   var chk = setInterval(function () {
     var done = 0, total = 0; progs.forEach(function (p) { done += p.done; total += p.total; }); document.getElementById('lb').style.width = (100 * done / Math.max(1, total)) + '%';
