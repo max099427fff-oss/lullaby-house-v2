@@ -30,9 +30,10 @@ canvas{display:block;width:100%;height:100%}
    2 corridor walls sit 0.05 m inside the corridor with polygonOffset, so his door-wall boxes/planes (same plane z=0 / z=2.6) do not z-fight or show through (dotted/checker patch, panel with brown top edge)
    3 door frames of his rooms are dimmed (colour x0.35, material cloned) so they are not bright white
    4 corridor floor/walls darker (floor 0x0e0b09, walls 0x1c1f23, lamps 6)
+   6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var BUILD = 'p2-003', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var BUILD = 'p2-004', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -82,12 +83,12 @@ canvas{display:block;width:100%;height:100%}
     if (CL > x) pl(CL - x, CH, mW, (x + CL) / 2, CH / 2, z, 0, ry);
   }
   var gN = [], gS = [];
-  defs.forEach(function (d) { (d.rot === 0 ? gN : gS).push({ x: d.wdx, w: d.dw + 0.16 }); });
+  defs.forEach(function (d) { (d.rot === 0 ? gN : gS).push({ x: d.wdx, w: d.dw + 0.04 }); });
   wallLine(0.05, 0, gN); wallLine(CW - 0.05, Math.PI, gS);
   // baseboards in the corridor
   var mT = new THREE.MeshStandardMaterial({ color: 0x120e0b, roughness: 0.8 });
   [0.02, CW - 0.02].forEach(function (z) { var b = new THREE.Mesh(new THREE.BoxGeometry(CL, 0.12, 0.03), mT); b.position.set(CL / 2, 0.06, z); cg.add(b); });
-  [3.2, 9.6].forEach(function (x) { var l = new THREE.SpotLight(0xffd9a8, 6, 8, 1.05, 0.9, 2); l.position.set(x, CH - 0.1, CW / 2); l.target.position.set(x, 0, CW / 2); cg.add(l, l.target); var tube = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.1), new THREE.MeshBasicMaterial({ color: 0x1c160f })); tube.position.set(x, CH - 0.02, CW / 2); cg.add(tube); });
+  [3.2, 9.6].forEach(function (x) { var l = new THREE.SpotLight(0xffd9a8, 6, 8, 1.05, 0.9, 2); l.position.set(x, CH - 0.1, CW / 2); l.target.position.set(x, 0, CW / 2); cg.add(l, l.target); var tube = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.04, 0.1), new THREE.MeshBasicMaterial({ color: 0x1c160f })); tube.position.set(x, CH - 0.02, CW / 2); tube.visible = false; cg.add(tube); });
   scene.add(cg);
   var torch = new THREE.SpotLight(0xfff0d6, 1.2, 10, 0.3, 0.8, 1.8); torch.castShadow = false; cam.add(torch, torch.target); torch.position.set(0.15, -0.1, 0); torch.target.position.set(0, 0, -6);
   // ---------- state ----------
@@ -340,7 +341,7 @@ canvas{display:block;width:100%;height:100%}
     var h = hide ? null : pickAt(innerWidth / 2, innerHeight / 2); labEl.textContent = hide ? 'اضغط للخروج' : (h ? (h.it.noPrefix ? h.it.label : (h.it.open ? 'إغلاق: ' : 'فتح: ') + h.it.label) : '');
     R.render(scene, cam); frames++; tF += dt; if (tF > 1) { window.__fps = frames / tF; frames = 0; tF = 0; }
   }
-  window.H = { SL: SL, SD: SD, sim: function (dt, n) { for (var i = 0; i < n; i++) sdTick(dt, false); }, slForce: function () { SD.trigger('watch'); }, defs: defs, st: st, R: R, scene: scene, setActive: setActive, goto: function (i) { var d = defs[i]; st.x = d.cx + d.cs * d.B.spawn.x; st.z = d.cz + d.cs * d.B.spawn.z; st.yaw = d.B.spawn.yaw + (d.rot ? Math.PI : 0); } };
+  window.H = { SL: SL, SD: SD, sim: function (dt, n) { for (var i = 0; i < n; i++) sdTick(dt, false); }, slForce: function () { SD.trigger('watch'); }, defs: defs, st: st, R: R, scene: scene, setActive: setActive, goto: function (i) { var d = defs[i]; st.x = d.cx + d.cs * d.B.spawn.x; st.z = d.cz + d.cs * d.B.spawn.z; st.yaw = d.B.spawn.yaw + (d.rot ? Math.PI : 0); for (var k = 0; k < 4; k++) { if (free(st.x, st.z) && free(st.x + 0.4, st.z) && free(st.x - 0.4, st.z) && free(st.x, st.z + 0.4) && free(st.x, st.z - 0.4)) break; st.x += (d.cx - st.x) * 0.25; st.z += (d.cz - st.z) * 0.25; } } };
   requestAnimationFrame(frame);
   var chk = setInterval(function () {
     var done = 0, total = 0; progs.forEach(function (p) { done += p.done; total += p.total; }); document.getElementById('lb').style.width = (100 * done / Math.max(1, total)) + '%';
