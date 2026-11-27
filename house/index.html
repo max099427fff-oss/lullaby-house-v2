@@ -27,6 +27,7 @@ canvas{display:block;width:100%;height:100%}
 (function () {
   /* QA_CHECKLIST (recheck before every delivery, open ?qa=1&debug=1)
   22 phase 2 death system: DM object (counter in localStorage hh_deaths, ?nosave=1, DM.kill/setCount/reset, penalties by count, gear reset panel)
+  23 scarier death (p2-023): silent far Slenderman, then 0.15 s lunge to 0.45 m with fov punch, canvas shake, scream+boom (DM.scream), all in DM_CFG; total still 2.5 s
    1 ceiling lamp: dim flush fixture, no bright slab floating in the corridor ceiling
    2 corridor walls sit 0.05 m inside the corridor with polygonOffset, so his door-wall boxes/planes (same plane z=0 / z=2.6) do not z-fight or show through (dotted/checker patch, panel with brown top edge)
    3 door frames of his rooms (brown jamb boxes 4a382a and pale boxes near the door gap) are dimmed (colour x0.35, material cloned) so they are not bright white
@@ -42,7 +43,7 @@ canvas{display:block;width:100%;height:100%}
    6 door gap in my corridor wall is dw+0.04 (was +0.16) so his pale wall ends beside the door are covered; ceiling lamp fixture box hidden (light kept); H.goto nudges spawn away from walls
    5 Slenderman: Watch ends on room change, prefers the looked-at side in the corridor, peripheral corridor distance = SD_PERIPH_CORR_MIN/MAX at the top
 */
-  var TR = true, LF = TR ? 0.32 : 0.4, FILL = TR ? 0.03 : 0.02, COR = TR ? 1.8 : 2.2, BUILD = 'p2-022', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
+  var TR = true, LF = TR ? 0.32 : 0.4, FILL = TR ? 0.03 : 0.02, COR = TR ? 1.8 : 2.2, BUILD = 'p2-023', SD_PERIPH_CORR_MIN = 0.9, SD_PERIPH_CORR_MAX = 1.1; // SD_PERIPH_*: peripheral glimpse distance (m) in the corridor
   var Q = new URLSearchParams(location.search), HIGH = Q.get('q') === 'high', QL = HIGH ? '2k' : '1k';
   // track the AudioContexts the room modules create, so only the current room is audible
   var ACs = [], OrigAC = window.AudioContext || window.webkitAudioContext;
@@ -359,7 +360,7 @@ canvas{display:block;width:100%;height:100%}
 
   // ---------- DM: death counter + progressive penalties (phase 2) ----------
   var DM_CFG = {
-    key: 'hh_deaths', showT: 0.4, fadeIn: 0.8, hold: 0.5, fadeOut: 0.8, showDist: 0.8, delay: 60, tensionDrop: 0.15, tensionMin: 0.1,
+    key: 'hh_deaths', showT: 0.6, fadeIn: 0.8, hold: 0.3, fadeOut: 0.8, showDist: 0.8, lungeFrom: 1.9, lungeTo: 0.45, lungeAt: 0.3, lungeT: 0.15, fovPunch: 16, shakePx: 26, scream: 0.9, boom: 1.0, delay: 60, tensionDrop: 0.15, tensionMin: 0.1,
     bloodFrom: 2, bloodOpacity: 0.85,
     blurFrom: 3, blur0: 0.6, blurMax: 2.0, vig0: 0.3, vigStep: 0.04,
     hueStep: 2, satStep: 0.05, shakeMax: 0.003, hbGain0: 0.05, hbGainStep: 0.025, hbBpm0: 58, hbBpmStep: 7,
@@ -426,6 +427,14 @@ canvas{display:block;width:100%;height:100%}
     if (now < dmHbT) return; dmHbT = now + 60 / bpm;
     [0, 0.22].forEach(function (o, i) { var os = SD.ac.createOscillator(), g = SD.ac.createGain(), t = now + o, v = (C.hbGain0 + C.hbGainStep * L) * (i ? 0.7 : 1); os.type = 'sine'; os.frequency.setValueAtTime(58, t); os.frequency.exponentialRampToValueAtTime(34, t + 0.12); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(v, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.18); os.connect(g); g.connect(SD.mg); os.start(t); os.stop(t + 0.2); });
   }, 120);
+  DM.scream = function () {
+    if (!SD.ac || SD.ac.state !== 'running') return; var c = SD.ac, t = c.currentTime, C = DM_CFG, g = c.createGain(), lp = c.createBiquadFilter(), k;
+    lp.type = 'lowpass'; lp.frequency.value = 7000; g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(C.scream, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.9);
+    [0, 1].forEach(function (i) { var o = c.createOscillator(); o.type = 'sawtooth'; o.frequency.setValueAtTime(650 + i * 37, t); o.frequency.exponentialRampToValueAtTime(2300 + i * 90, t + 0.35); o.frequency.exponentialRampToValueAtTime(900, t + 0.9); o.connect(lp); o.start(t); o.stop(t + 0.95); });
+    var s = c.createBufferSource(), nf = c.createBiquadFilter(), ng = c.createGain(); s.buffer = SD.nb; nf.type = 'bandpass'; nf.frequency.value = 2800; nf.Q.value = 0.7; ng.gain.setValueAtTime(0.9, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.7); s.connect(nf); nf.connect(ng); ng.connect(g); s.start(t); s.stop(t + 0.75);
+    lp.connect(g); g.connect(SD.mg);
+    var b = c.createOscillator(), bg = c.createGain(); b.type = 'sine'; b.frequency.setValueAtTime(80, t); b.frequency.exponentialRampToValueAtTime(26, t + 0.5); bg.gain.setValueAtTime(C.boom, t); bg.gain.exponentialRampToValueAtTime(0.001, t + 0.6); b.connect(bg); bg.connect(SD.mg); b.start(t); b.stop(t + 0.65);
+  };
   DM.kill = function (reason) {
     if (DM.dead || !window.__ready) return false;
     var C = DM_CFG, bed = defs[1].B; DM.dead = true; DM.lastReason = reason || ''; DM.fy = st.yaw; DM.fp = st.pitch; DM.t0 = performance.now();
@@ -433,14 +442,23 @@ canvas{display:block;width:100%;height:100%}
     try { sdResume(); } catch (e) { }
     SD.end(); SD.ev = null; SD.nA = SD.now + 600; SD.nB = SD.now + 600;
     var fw = new THREE.Vector3(-Math.sin(st.yaw), 0, -Math.cos(st.yaw)), cp = cam.position;
-    SL.position.set(cp.x + fw.x * C.showDist, 0, cp.z + fw.z * C.showDist); SL.rotation.y = Math.atan2(-(SL.position.x - cp.x), -(SL.position.z - cp.z)) + Math.PI; SL.visible = true;
-    SD.flash = C.showT; SD.hit();
+    var place = function (d) { SL.position.set(cp.x + fw.x * d, 0, cp.z + fw.z * d); SL.rotation.y = Math.atan2(-(SL.position.x - cp.x), -(SL.position.z - cp.z)) + Math.PI; };
+    place(C.lungeFrom); SL.visible = true; SD.flash = 0; var fov0 = cam.fov, cv = document.querySelector('canvas');
+    setTimeout(function () {
+      var t1 = performance.now(), k = 0; SD.flash = 0.6; DM.scream(); SD.hit();
+      var iv = setInterval(function () {
+        var u = Math.min(1, (performance.now() - t1) / (C.lungeT * 1000)); place(C.lungeFrom + (C.lungeTo - C.lungeFrom) * u * u);
+        cam.fov = fov0 + C.fovPunch * u; cam.updateProjectionMatrix(); k++;
+        if (cv) cv.style.transform = 'translate(' + ((Math.random() - 0.5) * C.shakePx) + 'px,' + ((Math.random() - 0.5) * C.shakePx) + 'px) scale(1.05)';
+        if (performance.now() - t1 > (C.showT - C.lungeAt) * 1000 + 300) { clearInterval(iv); if (cv) cv.style.transform = ''; cam.fov = fov0; cam.updateProjectionMatrix(); }
+      }, 33);
+    }, C.lungeAt * 1000);
     setTimeout(function () { DM.fx.black.style.transition = 'opacity ' + C.fadeIn + 's linear'; DM.fx.black.style.opacity = 1; }, C.showT * 1000);
     setTimeout(function () {
       // player is fully black: reset
       if (bed.hiding) { try { bed.use(); } catch (e) { } }
       wasHide = false; st.x = C.respawn.x; st.z = C.respawn.z; st.yaw = C.respawn.yaw; st.pitch = 0; DM.fy = st.yaw; DM.fp = 0;
-      torch.visible = true; SD.tOff = false; SL.visible = false; SD.end(); SD.ev = null; SD.flash = 0;
+      torch.visible = true; SD.tOff = false; SL.visible = false; SD.end(); SD.ev = null; SD.flash = 0; cam.fov = fov0; cam.updateProjectionMatrix(); if (cv) cv.style.transform = '';
       SD.nA = SD.now + C.delay; SD.nB = SD.now + C.delay + 10; SD.rt = SD.now;
       if (SD.tension > C.tensionMin) SD.tension = Math.max(C.tensionMin, SD.tension - C.tensionDrop);
       DM.apply();
