@@ -144,7 +144,15 @@
 
     // ---------- extra furniture ----------
     var mDark = new THREE.MeshStandardMaterial({ color: 0x2c241d, roughness: 0.8, metalness: 0 });
-    box(1.1, 1.9, 0.45, mDark, W - 1.0, 0.95, D - 0.25, 1, true); box(0.5, 0.8, 0.02, mWood, W - 1.28, 1.2, D - 0.49, 1); box(0.5, 0.8, 0.02, mWood, W - 0.72, 1.2, D - 0.49, 1); // wall cabinet
+    box(1.1, 1.9, 0.45, mDark, W - 1.0, 0.95, D - 0.25, 1, true); // wall cabinet with two hinged doors
+    var cabP = [];
+    [[W - 1.53, 0.25, 1.6], [W - 0.47, -0.25, -1.6]].forEach(function (c, i) {
+      var pg = new THREE.BoxGeometry(0.5, 0.8, 0.02); pg.translate(c[1], 0, 0);
+      var pm = new THREE.Mesh(pg, mWood); pm.position.set(c[0], 1.2, D - 0.49); pm.castShadow = true; pm.receiveShadow = true; G.add(pm);
+      var pd = { mesh: pm, target: 0, cur: 0 }; doors.push(pd); cabP.push({ d: pd, open: c[2] });
+    });
+    var cabOpen = false;
+    interact.push({ id: 'wallcabinet', name: 'الخزانة', pos: new THREE.Vector3(W - 1.0, 1.2, D - 1.0), radius: 1.1, activate: function () { cabOpen = !cabOpen; cabP.forEach(function (c) { c.d.target = cabOpen ? c.open : 0; }); } });
     col(W - 1.6, D - 0.5, W - 0.4, D);
     var bk = add(new THREE.CylinderGeometry(0.28, 0.22, 0.6, 14, 1, true), new THREE.MeshStandardMaterial({ color: 0x5b4630, roughness: 0.95, side: THREE.DoubleSide }), W - 2.2, 0.3, D - 0.45, 0, true); col(W - 2.55, D - 0.8, W - 1.85, D - 0.1);
     box(1.2, 0.03, 0.3, mWood, 2.2, 1.7, D - 0.16, 1, true); box(0.05, 0.25, 0.05, mRust, 1.7, 1.58, D - 0.14, 1); box(0.05, 0.25, 0.05, mRust, 2.7, 1.58, D - 0.14, 1);
@@ -197,7 +205,12 @@
       for (var q = 0; q < drips.length; q++) { var r = drips[q]; r.t += dt * (r.fast ? 2.6 : 1); var ph = r.t % 2.4, e = Math.max(0, ph - 1.3), y = r.y0 - 0.5 * 9.8 * e * e; r.m.visible = ph > 1.3 && y > 0.37; r.m.position.set(r.x, Math.max(0.37, y), 0.15); }
     }
     colliders.push(shut);
-    return { group: G, update: update, interactables: interact, bounds: { room: { x0: 0, z0: 0, x1: W, z1: D, h: H }, colliders: colliders }, spawn: { x: 1.0, y: 1.6, z: D - 1.1, yaw: 0 }, size: { w: W, d: D, h: H } };
+    var hinges = [
+      { id: 'door', mesh: door, pivot: { x: 0.55, y: 0, z: D - 0.02 }, axis: 'y', size: { w: 0.85, h: 2.0, t: 0.04 }, swing: 'into room (north)', closed: 0, ajar: 0.5, open: 1.6, state: dd },
+      { id: 'wallcabinet_left', mesh: cabP[0].d.mesh, pivot: { x: W - 1.53, y: 1.2, z: D - 0.49 }, axis: 'y', size: { w: 0.5, h: 0.8, t: 0.02 }, swing: 'north', closed: 0, open: 1.6, state: cabP[0].d },
+      { id: 'wallcabinet_right', mesh: cabP[1].d.mesh, pivot: { x: W - 0.47, y: 1.2, z: D - 0.49 }, axis: 'y', size: { w: 0.5, h: 0.8, t: 0.02 }, swing: 'north', closed: 0, open: -1.6, state: cabP[1].d }
+    ];
+    return { group: G, update: update, hinges: hinges, interactables: interact, bounds: { room: { x0: 0, z0: 0, x1: W, z1: D, h: H }, colliders: colliders }, spawn: { x: 1.0, y: 1.6, z: D - 1.1, yaw: 0 }, size: { w: W, d: D, h: H } };
   }
   global.BathroomModule = { build: build, size: { w: W, d: D, h: H } };
 })(typeof window !== 'undefined' ? window : this);
