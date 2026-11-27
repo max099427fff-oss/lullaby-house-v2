@@ -18,6 +18,7 @@ canvas{display:block;width:100%;height:100%}
 <canvas id='c'></canvas><div id='lab'></div><div id='hud'></div>
 <div id='stick'><div id='knob'></div></div><div class='b' id='bf'>🔦</div><div class='b' id='act'>فتح</div>
 <script src='https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js'></script>
+<script src='https://unpkg.com/three@0.128.0/examples/js/loaders/GLTFLoader.js'></script>
 <script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/bathroom/bathroom.js'></script>
 <script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/bedroom/bedroom.js'></script>
 <script src='https://cdn.jsdelivr.net/gh/kakashi-market-dev/haunted-house-prototype@cb6decde3cda06e00095d643617c7ff9c4d46422/kitchen/kitchen.js'></script>
@@ -138,8 +139,21 @@ canvas{display:block;width:100%;height:100%}
   sp(cg, sm, 0.07, 0.55, 0, 0.06, 1.1, 0.06); sp(cg, sm, -0.07, 0.55, 0, 0.06, 1.1, 0.06);
   var tie = sp(cg, new THREE.MeshStandardMaterial({ color: 0x5a0a0a }), 0, 1.75, 0.075, 0.025, 0.5, 0.02);
   SL.visible = false; scene.add(SL);
+  var slMix = null;
+  fetch('https://cdn.jsdelivr.net/gh/max099427fff-oss/haunted-house-prototype@main/index.html').then(function (r) { return r.text(); }).then(function (t) {
+    var m = /SLENDER_B64="([^"]+)"/.exec(t); if (!m) return; var b = atob(m[1]), u = new Uint8Array(b.length); for (var i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+    new THREE.GLTFLoader().parse(u.buffer, '', function (g) {
+      var mo = g.scene, bx = new THREE.Box3().setFromObject(mo), sc = 2.3 / Math.max(0.01, bx.max.y - bx.min.y);
+      mo.scale.set(sc, sc, sc); mo.position.y = -bx.min.y * sc; mo.rotation.y = Math.PI * 2;
+      mo.traverse(function (o) { if (o.isMesh) { o.frustumCulled = false; o.castShadow = false; o.receiveShadow = false; } });
+      while (SL.children.length) SL.remove(SL.children[0]); SL.add(mo);
+      slMix = new THREE.AnimationMixer(mo); var c = null; g.animations.forEach(function (a) { if (a.name === 'idle') c = a; }); c = c || g.animations[0]; if (c) slMix.clipAction(c).play();
+      window.__slender = g.animations.map(function (a) { return a.name; });
+    }, function () {});
+  }).catch(function () {});
   var slT = 6, slSeen = 0, slOn = false;
   function slTick(dt) {
+    if (slMix && SL.visible) slMix.update(dt);
     slT -= dt;
     if (!slOn) { if (slT <= 0) { for (var i = 0; i < 12; i++) { var a = st.yaw + (Math.random() < 0.5 ? -1 : 1) * (0.7 + Math.random() * 0.8), r = 3 + Math.random() * 3, x = st.x - Math.sin(a) * r, z = st.z - Math.cos(a) * r; if (free(x, z) && free(x + 0.2, z) && free(x, z + 0.2)) { SL.position.set(x, 0, z); slOn = true; slSeen = 0; SL.visible = true; break; } } slT = 2; } }
     else {
@@ -173,4 +187,4 @@ canvas{display:block;width:100%;height:100%}
     if (done >= total && total > 0) { clearInterval(chk); for (var i = -1; i < defs.length; i++) { setActive(i); R.render(scene, cam); } setActive(roomAt(st.x, st.z)); window.__ready = true; setTimeout(function () { var l = document.getElementById('load'); l.style.opacity = 0; setTimeout(function () { l.style.display = 'none'; }, 700); }, 300); }
   }, 200);
 })();
-</script></body></html>
+</script><div style='position:fixed;left:4px;bottom:2px;font:9px sans-serif;opacity:.35;color:#999;direction:ltr;pointer-events:none'>Slenderman model by Vicente Betoret Ferrero, CC BY 4.0, sketchfab.com. Textures: Poly Haven (CC0).</div></body></html>
