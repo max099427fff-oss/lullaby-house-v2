@@ -62,8 +62,11 @@ jobs:
           try { await shot('bed-hide', hold + `(function(){var d=H.defs[1]; var B=d.B; P.x=d.cx+B.bedSpot.x; P.z=d.cz+B.bedSpot.z; P.yaw=0; B.use();})()`); } catch (e) { log.errors.push('bed-hide: ' + e.message); }
           await page.evaluate('H.defs[1].B.hiding && H.defs[1].B.use()');
           for (const ev of ['watch', 'behind', 'torch', 'periph']) {
-            const face = ev === 'watch' || ev === 'torch' ? 'if(H.SL.visible){P.yaw=Math.atan2(-(H.SL.position.x-P.x),-(H.SL.position.z-P.z));}' : '';
-            await shot('event-' + ev, at(4, 1.3, E) + `H.SD.rt=-99; H.SD.trigger('${ev}'); var n=0; while(n<200 && !H.SL.visible){H.sim(0.05,1); n++;} ${face} window.__evTicks=n;`, ev === 'periph' ? 100 : 400);
+            const off = ev === 'periph' ? '+0.3' : '';
+            const face = ev === 'behind' ? '' : 'if(H.SL.visible){P.yaw=Math.atan2(-(H.SL.position.x-P.x),-(H.SL.position.z-P.z))' + off + ';}';
+            const steps = ev === 'torch' ? 30 : 0;
+            await shot('event-' + ev, at(4, 1.3, E) + `H.SD.rt=-99; window.__oe=H.SD.end; if('${ev}'!=='behind'){H.SD.end=function(){};} H.SD.trigger('${ev}'); var n=0; if('${ev}'==='behind'){while(n<200 && !H.SL.visible){H.sim(0.05,1); n++;}} else {H.sim(0.05,${steps});} ${face} window.__evTicks=n;`, 400);
+            await page.evaluate('H.SD.end=window.__oe;');
           }
           log.qa = await page.evaluate(() => window.__qa);
           const fpsVals = Object.values(log.fps).filter(v => v > 0);
